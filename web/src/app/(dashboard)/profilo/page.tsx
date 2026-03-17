@@ -4,9 +4,8 @@ import { useSession, signOut } from "next-auth/react";
 import { useEffect, useState } from "react";
 
 interface Riepilogo {
-  meseTotaleOre: number;
-  meseRegistrazioni: number;
-  settimanaTotaleOre: number;
+  meseLezioni: number;
+  settimanaLezioni: number;
 }
 
 export default function ProfiloPage() {
@@ -41,18 +40,18 @@ export default function ProfiloPage() {
         <div className="grid grid-cols-2 gap-3">
           <div className="bg-white rounded-2xl p-4 shadow-sm text-center">
             <p className="text-2xl font-bold">
-              {riepilogo.settimanaTotaleOre.toFixed(1)}
+              {riepilogo.settimanaLezioni}
             </p>
             <p className="text-xs text-brand-gray-dark mt-1">
-              Ore questa settimana
+              Lezioni questa settimana
             </p>
           </div>
           <div className="bg-white rounded-2xl p-4 shadow-sm text-center">
             <p className="text-2xl font-bold">
-              {riepilogo.meseTotaleOre.toFixed(1)}
+              {riepilogo.meseLezioni}
             </p>
             <p className="text-xs text-brand-gray-dark mt-1">
-              Ore questo mese
+              Lezioni questo mese
             </p>
           </div>
         </div>

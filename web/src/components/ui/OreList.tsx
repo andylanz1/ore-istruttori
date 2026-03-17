@@ -4,10 +4,9 @@ import { useEffect, useState } from "react";
 
 interface Registrazione {
   id: string;
-  oraInizio: string;
-  oraFine: string;
   ore: number;
   attivita: string;
+  partecipanti: number;
   note: string | null;
   stato: string;
 }
@@ -31,12 +30,10 @@ export default function OreList({ selectedDate, refreshKey }: OreListProps) {
   }, [selectedDate, refreshKey]);
 
   async function handleDelete(id: string) {
-    if (!confirm("Eliminare questa registrazione?")) return;
+    if (!confirm("Eliminare questa lezione?")) return;
     await fetch(`/api/ore/${id}`, { method: "DELETE" });
     setItems((prev) => prev.filter((item) => item.id !== id));
   }
-
-  const totalOre = items.reduce((sum, item) => sum + item.ore, 0);
 
   if (loading) {
     return (
@@ -49,24 +46,22 @@ export default function OreList({ selectedDate, refreshKey }: OreListProps) {
   if (items.length === 0) {
     return (
       <div className="text-center py-8 text-brand-gray-dark text-sm">
-        Nessuna ora registrata per questo giorno
+        Nessuna lezione registrata per questo giorno
       </div>
     );
   }
 
   return (
     <div className="space-y-2">
-      {/* Totale giornaliero */}
       <div className="flex items-center justify-between px-1">
         <span className="text-sm font-medium text-brand-gray-dark">
-          Registrazioni del giorno
+          Lezioni del giorno
         </span>
         <span className="text-sm font-semibold">
-          Totale: {totalOre.toFixed(1)}h
+          {items.reduce((s, i) => s + i.ore, 0)}h — {items.length} {items.length === 1 ? "lezione" : "lezioni"}
         </span>
       </div>
 
-      {/* Cards */}
       {items.map((item) => (
         <div
           key={item.id}
@@ -75,16 +70,18 @@ export default function OreList({ selectedDate, refreshKey }: OreListProps) {
           <div className="flex-1">
             <div className="flex items-center gap-2">
               <span className="font-semibold text-sm">
-                {item.oraInizio} — {item.oraFine}
+                {item.attivita}
               </span>
               <span className="text-xs px-2 py-0.5 rounded-full bg-brand-gray text-brand-gray-dark">
-                {item.ore.toFixed(1)}h
+                {item.ore}h
               </span>
             </div>
-            <div className="text-sm text-brand-gray-dark mt-0.5">
-              {item.attivita}
+            <div className="flex items-center gap-2 mt-0.5">
+              <span className="text-xs px-2 py-0.5 rounded-full bg-brand-gray text-brand-gray-dark">
+                {item.partecipanti} {item.partecipanti === 1 ? "partecipante" : "partecipanti"}
+              </span>
               {item.note && (
-                <span className="ml-1 italic">· {item.note}</span>
+                <span className="text-xs text-brand-gray-dark italic">{item.note}</span>
               )}
             </div>
           </div>

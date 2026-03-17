@@ -8,24 +8,22 @@ export async function GET() {
 
   const now = new Date();
 
-  // Inizio mese
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
-  // Inizio settimana (lunedì)
   const startOfWeek = new Date(now);
   const day = startOfWeek.getDay();
   const diff = day === 0 ? 6 : day - 1;
   startOfWeek.setDate(startOfWeek.getDate() - diff);
   startOfWeek.setHours(0, 0, 0, 0);
 
-  const [meseRegs, settimanaRegs] = await Promise.all([
-    prisma.registrazioneOre.findMany({
+  const [meseCount, settimanaCount] = await Promise.all([
+    prisma.registrazioneOre.count({
       where: {
         userId: session.user.id,
         data: { gte: startOfMonth },
       },
     }),
-    prisma.registrazioneOre.findMany({
+    prisma.registrazioneOre.count({
       where: {
         userId: session.user.id,
         data: { gte: startOfWeek },
@@ -34,8 +32,7 @@ export async function GET() {
   ]);
 
   return NextResponse.json({
-    meseTotaleOre: meseRegs.reduce((s, r) => s + r.ore, 0),
-    meseRegistrazioni: meseRegs.length,
-    settimanaTotaleOre: settimanaRegs.reduce((s, r) => s + r.ore, 0),
+    meseLezioni: meseCount,
+    settimanaLezioni: settimanaCount,
   });
 }
