@@ -14,12 +14,13 @@ model User {
   email         String    @unique
   telefono      String?
   passwordHash  String
-  ruolo         String    @default("istruttore") // "istruttore" | "admin"
+  ruolo         String    @default("istruttore") // "admin" | "responsabile" | "istruttore"
   attivo        Boolean   @default(true)
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
   registrazioniOre RegistrazioneOre[]
+  tariffe          TariffaIstruttore[]
   sessions         Session[]
   accounts         Account[]
 
@@ -33,6 +34,7 @@ model RegistrazioneOre {
   oraInizio     String   // "09:00" — ora inizio lezione
   attivita      String   // es. "Pilates", "In-Trinity", "WBS"
   partecipanti  Int?     // popolato automaticamente da DBGym
+  compenso      Float?   // € calcolato in base a tariffa + partecipanti
   note          String?
   stato         String   @default("bozza") // "bozza" | "confermato"
   createdAt     DateTime @default(now())
@@ -42,6 +44,22 @@ model RegistrazioneOre {
 
   @@unique([userId, data, oraInizio])
   @@map("registrazioni_ore")
+}
+
+// Compenso personalizzato per istruttore + attività
+model TariffaIstruttore {
+  id            String   @id @default(cuid())
+  userId        String
+  attivita      String   // es. "Pilates", "PT 1h"
+  compenso      Float    // €/lezione per questo istruttore
+  note          String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, attivita])
+  @@map("tariffe_istruttore")
 }
 
 // NextAuth.js models

@@ -19,6 +19,21 @@ async function main() {
     },
   });
 
+  // Responsabile Fitness
+  const respHash = await bcrypt.hash("resp2026", 10);
+  await prisma.user.upsert({
+    where: { email: "responsabile@olisticzone.it" },
+    update: {},
+    create: {
+      nome: "Responsabile",
+      cognome: "Fitness",
+      email: "responsabile@olisticzone.it",
+      telefono: "+393279451839",
+      passwordHash: respHash,
+      ruolo: "responsabile",
+    },
+  });
+
   // Istruttore di test
   const testHash = await bcrypt.hash("test2026", 10);
   await prisma.user.upsert({
@@ -35,8 +50,9 @@ async function main() {
   });
 
   console.log("Seed completato:");
-  console.log("  Admin: admin@olisticzone.it / admin2026");
-  console.log("  Test:  test@olisticzone.it  / test2026");
+  console.log("  Admin:         admin@olisticzone.it         / admin2026");
+  console.log("  Responsabile:  responsabile@olisticzone.it  / resp2026");
+  console.log("  Istruttore:    test@olisticzone.it          / test2026");
 }
 
 main()
