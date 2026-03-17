@@ -1,0 +1,923 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>O-Zone — Inserimento Ore</title>
+<style>
+  :root {
+    /* O-Zone brand palette — minimalista, elegante */
+    --brand: #222222;
+    --brand-light: #333333;
+    --brand-pale: #F5F5F5;
+    --brand-dark: #111111;
+    --accent: #C8A96E;        /* oro morbido — accento wellness */
+    --accent-light: #E8D5B0;
+    --gray-50: #FAFAFA;
+    --gray-100: #F5F5F5;
+    --gray-200: #EEEEEE;
+    --gray-300: #E0E0E0;
+    --gray-400: #BDBDBD;
+    --gray-600: #757575;
+    --gray-800: #424242;
+    --white: #FFFFFF;
+    --shadow: 0 2px 8px rgba(0,0,0,0.08);
+    --radius: 12px;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: var(--gray-100);
+    color: var(--gray-800);
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ===== SCREEN SYSTEM ===== */
+  .screen { display: none; min-height: 100vh; }
+  .screen.active { display: flex; flex-direction: column; }
+
+  /* ===== LOGIN SCREEN ===== */
+  #login {
+    justify-content: center;
+    align-items: center;
+    background: linear-gradient(135deg, var(--brand-dark) 0%, var(--brand) 60%, var(--brand-light) 100%);
+    padding: 24px;
+  }
+
+  .login-card {
+    background: var(--white);
+    border-radius: 20px;
+    padding: 40px 28px;
+    width: 100%;
+    max-width: 380px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+    text-align: center;
+  }
+
+  .login-logo {
+    margin-bottom: 8px;
+  }
+
+  .login-logo img {
+    max-width: 200px;
+    height: auto;
+  }
+
+  .login-subtitle {
+    font-size: 13px;
+    color: var(--gray-600);
+    margin-bottom: 32px;
+  }
+
+  .form-group {
+    margin-bottom: 16px;
+    text-align: left;
+  }
+
+  .form-group label {
+    display: block;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--gray-600);
+    margin-bottom: 6px;
+  }
+
+  .form-group input {
+    width: 100%;
+    padding: 14px 16px;
+    border: 2px solid var(--gray-300);
+    border-radius: 10px;
+    font-size: 16px;
+    transition: border-color 0.2s;
+    outline: none;
+  }
+
+  .form-group input:focus {
+    border-color: var(--brand);
+  }
+
+  .btn {
+    display: block;
+    width: 100%;
+    padding: 14px;
+    border: none;
+    border-radius: 10px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform 0.1s, opacity 0.2s;
+  }
+
+  .btn:active { transform: scale(0.98); }
+
+  .btn-primary {
+    background: var(--brand);
+    color: var(--white);
+    margin-top: 8px;
+  }
+
+  .btn-primary:hover { background: var(--brand-dark); }
+
+  .btn-outline {
+    background: transparent;
+    color: var(--brand);
+    border: 2px solid var(--brand);
+  }
+
+  /* ===== HEADER ===== */
+  .app-header {
+    background: var(--brand);
+    color: var(--white);
+    padding: 16px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  }
+
+  .app-header h1 {
+    font-size: 18px;
+    font-weight: 700;
+  }
+
+  .header-user {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.25);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    font-weight: 700;
+  }
+
+  .logout-btn {
+    background: none;
+    border: none;
+    color: rgba(255,255,255,0.8);
+    font-size: 13px;
+    cursor: pointer;
+    padding: 4px 8px;
+  }
+
+  /* ===== DASHBOARD ===== */
+  #dashboard { background: var(--gray-100); }
+
+  .dashboard-content {
+    padding: 20px;
+    flex: 1;
+  }
+
+  .welcome-card {
+    background: var(--white);
+    border-radius: var(--radius);
+    padding: 24px;
+    margin-bottom: 20px;
+    box-shadow: var(--shadow);
+  }
+
+  .welcome-card h2 {
+    font-size: 22px;
+    margin-bottom: 4px;
+  }
+
+  .welcome-card p {
+    color: var(--gray-600);
+    font-size: 14px;
+  }
+
+  .month-selector {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: var(--white);
+    border-radius: var(--radius);
+    padding: 16px 20px;
+    margin-bottom: 20px;
+    box-shadow: var(--shadow);
+  }
+
+  .month-selector select {
+    flex: 1;
+    padding: 12px;
+    border: 2px solid var(--gray-300);
+    border-radius: 8px;
+    font-size: 15px;
+    background: var(--white);
+    outline: none;
+  }
+
+  .month-selector select:focus {
+    border-color: var(--brand);
+  }
+
+  .stats-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+
+  .stat-card {
+    background: var(--white);
+    border-radius: var(--radius);
+    padding: 20px;
+    box-shadow: var(--shadow);
+    text-align: center;
+  }
+
+  .stat-value {
+    font-size: 32px;
+    font-weight: 800;
+    color: var(--brand);
+  }
+
+  .stat-label {
+    font-size: 12px;
+    color: var(--gray-600);
+    margin-top: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .action-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    width: 100%;
+    padding: 18px;
+    background: var(--brand);
+    color: var(--white);
+    border: none;
+    border-radius: var(--radius);
+    font-size: 17px;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(34,34,34,0.25);
+    transition: transform 0.1s;
+  }
+
+  .action-btn:active { transform: scale(0.98); }
+
+  .action-btn .icon { font-size: 22px; }
+
+  /* ===== GRID SCREEN ===== */
+  #grid-screen { background: var(--gray-50); }
+
+  .grid-header {
+    background: var(--brand);
+    color: var(--white);
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+
+  .back-btn {
+    background: none;
+    border: none;
+    color: var(--white);
+    font-size: 24px;
+    cursor: pointer;
+    padding: 4px;
+    line-height: 1;
+  }
+
+  .grid-header-info h2 {
+    font-size: 16px;
+    font-weight: 700;
+  }
+
+  .grid-header-info span {
+    font-size: 12px;
+    opacity: 0.85;
+  }
+
+  .save-btn {
+    margin-left: auto;
+    background: rgba(255,255,255,0.2);
+    border: 2px solid rgba(255,255,255,0.5);
+    color: var(--white);
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .save-btn:active { background: rgba(255,255,255,0.3); }
+
+  /* ===== GRID TABLE ===== */
+  .grid-wrapper {
+    overflow-x: auto;
+    overflow-y: auto;
+    flex: 1;
+    -webkit-overflow-scrolling: touch;
+    position: relative;
+  }
+
+  .ore-table {
+    border-collapse: separate;
+    border-spacing: 0;
+    min-width: 100%;
+    font-size: 13px;
+  }
+
+  .ore-table thead { position: sticky; top: 0; z-index: 20; }
+
+  .ore-table th {
+    background: var(--brand-dark);
+    color: var(--white);
+    padding: 8px 4px;
+    text-align: center;
+    font-size: 10px;
+    font-weight: 600;
+    white-space: nowrap;
+    min-width: 52px;
+    border-right: 1px solid rgba(255,255,255,0.15);
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    position: sticky;
+    top: 0;
+  }
+
+  .ore-table th:first-child {
+    position: sticky;
+    left: 0;
+    z-index: 30;
+    min-width: 48px;
+    background: var(--brand-dark);
+  }
+
+  .ore-table td {
+    padding: 0;
+    text-align: center;
+    border-bottom: 1px solid var(--gray-200);
+    border-right: 1px solid var(--gray-200);
+    height: 44px;
+    min-width: 52px;
+  }
+
+  .ore-table td:first-child {
+    position: sticky;
+    left: 0;
+    z-index: 10;
+    background: var(--gray-100);
+    font-weight: 700;
+    font-size: 14px;
+    color: var(--brand);
+    min-width: 48px;
+    border-right: 2px solid var(--brand);
+  }
+
+  .ore-table tbody tr:nth-child(even) td { background: var(--gray-50); }
+  .ore-table tbody tr:nth-child(even) td:first-child { background: var(--gray-100); }
+  .ore-table tbody tr:nth-child(odd) td { background: var(--white); }
+  .ore-table tbody tr:nth-child(odd) td:first-child { background: var(--gray-100); }
+
+  .ore-table tbody tr:hover td { background: var(--accent-light); }
+  .ore-table tbody tr:hover td:first-child { background: var(--accent); color: var(--white); }
+
+  /* Weekend rows */
+  .ore-table tbody tr.weekend td { background: #F5F0E8; }
+  .ore-table tbody tr.weekend td:first-child { background: var(--accent); color: var(--white); }
+
+  .cell-input {
+    width: 100%;
+    height: 100%;
+    border: none;
+    text-align: center;
+    font-size: 16px;
+    font-weight: 600;
+    background: transparent;
+    color: var(--gray-800);
+    outline: none;
+    padding: 0;
+    -moz-appearance: textfield;
+  }
+
+  .cell-input::-webkit-outer-spin-button,
+  .cell-input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+
+  .cell-input:focus {
+    background: #FFF8E1;
+    box-shadow: inset 0 0 0 2px var(--accent);
+  }
+
+  .cell-input.has-value {
+    color: var(--brand);
+  }
+
+  /* Totals row */
+  .ore-table tfoot td {
+    background: var(--brand) !important;
+    color: var(--white);
+    font-weight: 800;
+    font-size: 15px;
+    height: 48px;
+    border: none;
+  }
+
+  .ore-table tfoot td:first-child {
+    background: var(--brand-dark) !important;
+    color: var(--white);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  /* ===== NOTES SECTION ===== */
+  .notes-section {
+    padding: 16px;
+    background: var(--white);
+    border-top: 2px solid var(--gray-300);
+  }
+
+  .notes-section label {
+    display: block;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--gray-600);
+    margin-bottom: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .notes-section textarea {
+    width: 100%;
+    padding: 12px;
+    border: 2px solid var(--gray-300);
+    border-radius: 8px;
+    font-size: 14px;
+    font-family: inherit;
+    resize: vertical;
+    min-height: 80px;
+    outline: none;
+  }
+
+  .notes-section textarea:focus {
+    border-color: var(--brand);
+  }
+
+  /* ===== BOTTOM BAR ===== */
+  .bottom-bar {
+    padding: 12px 16px;
+    padding-bottom: max(12px, env(safe-area-inset-bottom));
+    background: var(--white);
+    border-top: 1px solid var(--gray-300);
+    display: flex;
+    gap: 12px;
+  }
+
+  .bottom-bar .btn { flex: 1; padding: 14px; font-size: 15px; }
+
+  /* ===== TOAST ===== */
+  .toast {
+    position: fixed;
+    bottom: 80px;
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: var(--gray-800);
+    color: var(--white);
+    padding: 14px 28px;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 600;
+    opacity: 0;
+    transition: all 0.3s ease;
+    z-index: 1000;
+    pointer-events: none;
+    white-space: nowrap;
+  }
+
+  .toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+
+  /* ===== STATUS BADGE ===== */
+  .status-badge {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    margin-top: 8px;
+  }
+
+  .status-badge.draft {
+    background: #FFF3E0;
+    color: #E65100;
+  }
+
+  .status-badge.sent {
+    background: #E8F5E9;
+    color: #2E7D32;
+  }
+
+  /* ===== HISTORY ===== */
+  .history-list {
+    background: var(--white);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    margin-top: 16px;
+    overflow: hidden;
+  }
+
+  .history-item {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--gray-200);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .history-item:last-child { border-bottom: none; }
+
+  .history-month { font-weight: 600; font-size: 15px; }
+  .history-hours { color: var(--gray-600); font-size: 13px; }
+  .history-status { font-size: 22px; }
+</style>
+</head>
+<body>
+
+<!-- ==================== LOGIN ==================== -->
+<div id="login" class="screen active">
+  <div class="login-card">
+    <div class="login-logo">
+      <img src="https://images.squarespace-cdn.com/content/v1/59a8252ef14aa1d4753f773f/1505582501952-4GGS7SEZFFX11LO447W5/logo+ozone+sito.png" alt="O-Zone Benessere & Movimento">
+    </div>
+    <div class="login-subtitle">Portale Istruttori</div>
+
+    <div class="form-group">
+      <label>Email o telefono</label>
+      <input type="text" placeholder="nome@email.it" id="login-email" value="federica.tirone@email.it">
+    </div>
+
+    <div class="form-group">
+      <label>Password</label>
+      <input type="password" placeholder="••••••••" id="login-password" value="demo1234">
+    </div>
+
+    <button class="btn btn-primary" onclick="showScreen('dashboard')">Accedi</button>
+
+    <p style="margin-top: 16px; font-size: 12px; color: var(--gray-400);">
+      Password dimenticata? Contatta l'amministratore
+    </p>
+  </div>
+</div>
+
+<!-- ==================== DASHBOARD ==================== -->
+<div id="dashboard" class="screen">
+  <div class="app-header">
+    <img src="https://images.squarespace-cdn.com/content/v1/59a8252ef14aa1d4753f773f/1505582501952-4GGS7SEZFFX11LO447W5/logo+ozone+sito.png" alt="O-Zone" style="height: 28px; filter: brightness(0) invert(1);">
+    <div class="header-user">
+      <div class="avatar">FT</div>
+      <button class="logout-btn" onclick="showScreen('login')">Esci</button>
+    </div>
+  </div>
+
+  <div class="dashboard-content">
+    <div class="welcome-card">
+      <h2>Ciao Federica!</h2>
+      <p>Inserisci le tue ore di lavoro per il mese selezionato.</p>
+      <span class="status-badge draft">Marzo 2026 — da compilare</span>
+    </div>
+
+    <div class="month-selector">
+      <select id="sel-month">
+        <option>Gennaio</option>
+        <option>Febbraio</option>
+        <option selected>Marzo</option>
+        <option>Aprile</option>
+        <option>Maggio</option>
+        <option>Giugno</option>
+        <option>Luglio</option>
+        <option>Agosto</option>
+        <option>Settembre</option>
+        <option>Ottobre</option>
+        <option>Novembre</option>
+        <option>Dicembre</option>
+      </select>
+      <select id="sel-year">
+        <option selected>2026</option>
+        <option>2025</option>
+      </select>
+    </div>
+
+    <div class="stats-row">
+      <div class="stat-card">
+        <div class="stat-value" id="stat-total">0</div>
+        <div class="stat-label">Ore totali</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="stat-days">0</div>
+        <div class="stat-label">Giorni lavorati</div>
+      </div>
+    </div>
+
+    <button class="action-btn" onclick="showScreen('grid-screen')">
+      <span class="icon">📝</span>
+      Inserisci Ore — Marzo 2026
+    </button>
+
+    <div class="history-list">
+      <div class="history-item">
+        <div>
+          <div class="history-month">Febbraio 2026</div>
+          <div class="history-hours">76 ore — 22 giorni</div>
+        </div>
+        <div class="history-status">✅</div>
+      </div>
+      <div class="history-item">
+        <div>
+          <div class="history-month">Gennaio 2026</div>
+          <div class="history-hours">68 ore — 20 giorni</div>
+        </div>
+        <div class="history-status">✅</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== GRID ==================== -->
+<div id="grid-screen" class="screen">
+  <div class="grid-header">
+    <button class="back-btn" onclick="showScreen('dashboard')">←</button>
+    <div class="grid-header-info">
+      <h2>Marzo 2026</h2>
+      <span>Federica Tirone</span>
+    </div>
+    <button class="save-btn" onclick="saveData()">💾 Salva</button>
+  </div>
+
+  <div class="grid-wrapper">
+    <table class="ore-table" id="ore-table">
+      <thead>
+        <tr id="header-row"></tr>
+      </thead>
+      <tbody id="grid-body"></tbody>
+      <tfoot>
+        <tr id="totals-row"></tr>
+      </tfoot>
+    </table>
+  </div>
+
+  <div class="notes-section">
+    <label>Note / Sostituzioni</label>
+    <textarea placeholder="Es: giorno 5 sostituzione per Maria, giorno 12 reformer extra..."></textarea>
+  </div>
+
+  <div class="bottom-bar">
+    <button class="btn btn-outline" onclick="showScreen('dashboard')">← Indietro</button>
+    <button class="btn btn-primary" onclick="submitData()">Invia ✓</button>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script>
+  // ===== CONFIG =====
+  const ACTIVITIES = [
+    'Pilates 1/4',
+    'Pilates 5/6',
+    'WBS 1/4',
+    'WBS 5/6',
+    'In-Trinity 1/4',
+    'In-Trinity 5',
+    'Shape&Tone 1/4',
+    'Shape&Tone 5/6',
+    'Yoga 1/4',
+    'Yoga 5/6',
+    'Easy WBS',
+    'Easy Reformer',
+    'Check Up',
+    'PT 1h',
+    'PT 30\'',
+    'OSTEO'
+  ];
+
+  const DAYS_IN_MONTH = 31; // Marzo 2026
+
+  // ===== SCREEN NAVIGATION =====
+  function showScreen(id) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+    if (id === 'grid-screen') buildGrid();
+  }
+
+  // ===== BUILD GRID =====
+  function buildGrid() {
+    const headerRow = document.getElementById('header-row');
+    const gridBody = document.getElementById('grid-body');
+    const totalsRow = document.getElementById('totals-row');
+
+    // Only build once
+    if (headerRow.children.length > 0) return;
+
+    // Header
+    const thDay = document.createElement('th');
+    thDay.textContent = 'GG';
+    headerRow.appendChild(thDay);
+
+    ACTIVITIES.forEach(act => {
+      const th = document.createElement('th');
+      th.textContent = act;
+      headerRow.appendChild(th);
+    });
+
+    // Get weekends for March 2026
+    function isWeekend(day) {
+      const date = new Date(2026, 2, day); // March = 2
+      const dow = date.getDay();
+      return dow === 0 || dow === 6;
+    }
+
+    // Body rows
+    for (let day = 1; day <= DAYS_IN_MONTH; day++) {
+      const tr = document.createElement('tr');
+      if (isWeekend(day)) tr.classList.add('weekend');
+
+      const tdDay = document.createElement('td');
+      tdDay.textContent = day;
+      tr.appendChild(tdDay);
+
+      ACTIVITIES.forEach((_, colIdx) => {
+        const td = document.createElement('td');
+        const input = document.createElement('input');
+        input.type = 'number';
+        input.min = '0';
+        input.max = '9';
+        input.className = 'cell-input';
+        input.dataset.day = day;
+        input.dataset.col = colIdx;
+        input.inputMode = 'numeric';
+        input.pattern = '[0-9]*';
+
+        input.addEventListener('input', function() {
+          // Limit to single digit
+          if (this.value.length > 1) this.value = this.value.slice(-1);
+          if (this.value && parseInt(this.value) > 0) {
+            this.classList.add('has-value');
+          } else {
+            this.classList.remove('has-value');
+          }
+          updateTotals();
+        });
+
+        input.addEventListener('focus', function() {
+          this.select();
+        });
+
+        // Arrow key navigation
+        input.addEventListener('keydown', function(e) {
+          const day = parseInt(this.dataset.day);
+          const col = parseInt(this.dataset.col);
+          let targetDay = day, targetCol = col;
+
+          if (e.key === 'ArrowDown') targetDay = Math.min(day + 1, DAYS_IN_MONTH);
+          else if (e.key === 'ArrowUp') targetDay = Math.max(day - 1, 1);
+          else if (e.key === 'ArrowRight' || e.key === 'Tab') {
+            e.preventDefault();
+            targetCol = Math.min(col + 1, ACTIVITIES.length - 1);
+          }
+          else if (e.key === 'ArrowLeft') targetCol = Math.max(col - 1, 0);
+          else return;
+
+          if (e.key !== 'Tab') e.preventDefault();
+          const target = document.querySelector(
+            `.cell-input[data-day="${targetDay}"][data-col="${targetCol}"]`
+          );
+          if (target) target.focus();
+        });
+
+        td.appendChild(input);
+        tr.appendChild(td);
+      });
+
+      gridBody.appendChild(tr);
+    }
+
+    // Totals row
+    const tdTotLabel = document.createElement('td');
+    tdTotLabel.textContent = 'TOT';
+    totalsRow.appendChild(tdTotLabel);
+
+    ACTIVITIES.forEach((_, colIdx) => {
+      const td = document.createElement('td');
+      td.id = `total-col-${colIdx}`;
+      td.textContent = '0';
+      totalsRow.appendChild(td);
+    });
+  }
+
+  // ===== UPDATE TOTALS =====
+  function updateTotals() {
+    let grandTotal = 0;
+    let daysWorked = new Set();
+
+    ACTIVITIES.forEach((_, colIdx) => {
+      let colTotal = 0;
+      for (let day = 1; day <= DAYS_IN_MONTH; day++) {
+        const input = document.querySelector(
+          `.cell-input[data-day="${day}"][data-col="${colIdx}"]`
+        );
+        const val = parseInt(input.value) || 0;
+        colTotal += val;
+        if (val > 0) daysWorked.add(day);
+      }
+      document.getElementById(`total-col-${colIdx}`).textContent = colTotal || '';
+      grandTotal += colTotal;
+    });
+
+    document.getElementById('stat-total').textContent = grandTotal;
+    document.getElementById('stat-days').textContent = daysWorked.size;
+  }
+
+  // ===== SAVE / SUBMIT =====
+  function saveData() {
+    showToast('Bozza salvata ✓');
+  }
+
+  function submitData() {
+    showToast('Ore inviate con successo! ✓');
+    setTimeout(() => showScreen('dashboard'), 1500);
+  }
+
+  function showToast(msg) {
+    const toast = document.getElementById('toast');
+    toast.textContent = msg;
+    toast.classList.add('show');
+    setTimeout(() => toast.classList.remove('show'), 2500);
+  }
+
+  // ===== DEMO DATA =====
+  // Pre-fill some cells to show how it looks with data
+  function loadDemoData() {
+    const demo = {
+      // [day, colIndex, value]
+      '2-0': 2, '3-0': 1, '3-1': 2,
+      '5-0': 3, '6-0': 3,
+      '9-0': 1, '10-0': 1, '10-2': 4,
+      '12-0': 3, '13-0': 2, '13-1': 1,
+      '16-0': 1, '17-0': 1, '17-2': 2,
+      '2-9': 1, '5-8': 1, '5-9': 1,
+      '9-8': 1, '10-8': 1, '10-9': 1,
+      '12-8': 1, '12-9': 1,
+      '16-8': 1, '17-9': 1,
+      '2-12': 1, '3-12': 1,
+      '9-13': 2, '10-13': 1, '10-14': 1,
+      '16-13': 1, '17-13': 1, '17-14': 2,
+      '3-15': 2, '6-15': 1,
+    };
+
+    // Will be applied after grid is built
+    window._demoData = demo;
+  }
+
+  // Apply demo after grid build
+  const origShowScreen = showScreen;
+  showScreen = function(id) {
+    origShowScreen(id);
+    if (id === 'grid-screen' && window._demoData && !window._demoApplied) {
+      window._demoApplied = true;
+      Object.entries(window._demoData).forEach(([key, val]) => {
+        const [day, col] = key.split('-');
+        const input = document.querySelector(
+          `.cell-input[data-day="${day}"][data-col="${col}"]`
+        );
+        if (input) {
+          input.value = val;
+          input.classList.add('has-value');
+        }
+      });
+      updateTotals();
+    }
+  };
+
+  loadDemoData();
+</script>
+
+</body>
+</html>

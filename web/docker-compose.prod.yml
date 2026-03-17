@@ -1,0 +1,33 @@
+services:
+  ore-istruttori:
+    build: .
+    container_name: ore-istruttori
+    restart: unless-stopped
+    environment:
+      - DATABASE_URL=file:/app/data/prod.db
+      - AUTH_SECRET=${AUTH_SECRET}
+      - NEXTAUTH_URL=https://istruttori.olisticzone.it
+      - AUTH_TRUST_HOST=true
+    volumes:
+      - ore-data:/app/data
+    networks:
+      - coolify
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.ore-istruttori.rule=Host(`istruttori.olisticzone.it`)"
+      - "traefik.http.routers.ore-istruttori.entrypoints=https"
+      - "traefik.http.routers.ore-istruttori.tls=true"
+      - "traefik.http.routers.ore-istruttori.tls.certresolver=letsencrypt"
+      - "traefik.http.services.ore-istruttori.loadbalancer.server.port=3000"
+      # HTTP -> HTTPS redirect
+      - "traefik.http.routers.ore-istruttori-http.rule=Host(`istruttori.olisticzone.it`)"
+      - "traefik.http.routers.ore-istruttori-http.entrypoints=http"
+      - "traefik.http.middlewares.ore-redirect.redirectscheme.scheme=https"
+      - "traefik.http.routers.ore-istruttori-http.middlewares=ore-redirect"
+
+volumes:
+  ore-data:
+
+networks:
+  coolify:
+    external: true
