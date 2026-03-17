@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
       userId: session.user.id,
       data: { gte: startOfDay, lte: endOfDay },
     },
-    orderBy: { createdAt: "asc" },
+    orderBy: { oraInizio: "asc" },
   });
 
   return NextResponse.json(registrazioni);
@@ -30,27 +30,18 @@ export async function POST(request: NextRequest) {
   if (!session) return NextResponse.json({ error: "Non autorizzato" }, { status: 401 });
 
   const body = await request.json();
-  const { data, ore, attivita, partecipanti, note } = body;
+  const { data, oraInizio, attivita, note } = body;
 
-  if (!data || !ore || !attivita || partecipanti === undefined || partecipanti === null) {
+  if (!data || !oraInizio || !attivita) {
     return NextResponse.json({ error: "Campi obbligatori mancanti" }, { status: 400 });
-  }
-
-  if (typeof ore !== "number" || ore <= 0) {
-    return NextResponse.json({ error: "Ore non valide" }, { status: 400 });
-  }
-
-  if (typeof partecipanti !== "number" || partecipanti < 0) {
-    return NextResponse.json({ error: "Numero partecipanti non valido" }, { status: 400 });
   }
 
   const registrazione = await prisma.registrazioneOre.create({
     data: {
       userId: session.user.id,
       data: new Date(data + "T00:00:00.000Z"),
-      ore,
+      oraInizio,
       attivita,
-      partecipanti,
       note,
     },
   });

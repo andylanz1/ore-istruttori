@@ -16,24 +16,14 @@ const ATTIVITA_OPTIONS = [
   "OSTEO",
 ];
 
-const ORE_OPTIONS = [
-  { value: 0.5, label: "30 min" },
-  { value: 1, label: "1 ora" },
-  { value: 1.5, label: "1h 30" },
-  { value: 2, label: "2 ore" },
-  { value: 2.5, label: "2h 30" },
-  { value: 3, label: "3 ore" },
-];
-
 interface OreFormProps {
   selectedDate: string;
   onSaved: () => void;
 }
 
 export default function OreForm({ selectedDate, onSaved }: OreFormProps) {
-  const [ore, setOre] = useState(1);
+  const [oraInizio, setOraInizio] = useState("09:00");
   const [attivita, setAttivita] = useState(ATTIVITA_OPTIONS[0]);
-  const [partecipanti, setPartecipanti] = useState("");
   const [note, setNote] = useState("");
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ text: string; type: "success" | "error" } | null>(null);
@@ -49,9 +39,8 @@ export default function OreForm({ selectedDate, onSaved }: OreFormProps) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           data: selectedDate,
-          ore,
+          oraInizio,
           attivita,
-          partecipanti: parseInt(partecipanti),
           note: note || undefined,
         }),
       });
@@ -63,7 +52,6 @@ export default function OreForm({ selectedDate, onSaved }: OreFormProps) {
 
       setMessage({ text: "Lezione salvata!", type: "success" });
       setNote("");
-      setPartecipanti("");
       onSaved();
 
       setTimeout(() => setMessage(null), 2000);
@@ -88,63 +76,36 @@ export default function OreForm({ selectedDate, onSaved }: OreFormProps) {
         })}
       </h3>
 
-      {/* Attività */}
-      <div>
-        <label className="block text-xs text-brand-gray-dark mb-1">
-          Attività
-        </label>
-        <select
-          value={attivita}
-          onChange={(e) => setAttivita(e.target.value)}
-          className="w-full px-3 py-2.5 rounded-xl border border-brand-gray-medium bg-brand-gray focus:outline-none focus:ring-2 focus:ring-brand-black/20"
-        >
-          {ATTIVITA_OPTIONS.map((a) => (
-            <option key={a} value={a}>
-              {a}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      {/* Durata */}
-      <div>
-        <label className="block text-xs text-brand-gray-dark mb-1">
-          Durata
-        </label>
-        <div className="grid grid-cols-6 gap-1">
-          {ORE_OPTIONS.map((opt) => (
-            <button
-              key={opt.value}
-              type="button"
-              onClick={() => setOre(opt.value)}
-              className={`py-2.5 rounded-xl text-xs font-medium transition ${
-                ore === opt.value
-                  ? "bg-brand-black text-white"
-                  : "bg-brand-gray text-brand-gray-dark border border-brand-gray-medium"
-              }`}
-            >
-              {opt.label}
-            </button>
-          ))}
+      {/* Attività + Ora */}
+      <div className="grid grid-cols-3 gap-3">
+        <div className="col-span-2">
+          <label className="block text-xs text-brand-gray-dark mb-1">
+            Attività
+          </label>
+          <select
+            value={attivita}
+            onChange={(e) => setAttivita(e.target.value)}
+            className="w-full px-3 py-2.5 rounded-xl border border-brand-gray-medium bg-brand-gray focus:outline-none focus:ring-2 focus:ring-brand-black/20"
+          >
+            {ATTIVITA_OPTIONS.map((a) => (
+              <option key={a} value={a}>
+                {a}
+              </option>
+            ))}
+          </select>
         </div>
-      </div>
-
-      {/* Partecipanti */}
-      <div>
-        <label className="block text-xs text-brand-gray-dark mb-1">
-          N° Partecipanti
-        </label>
-        <input
-          type="number"
-          inputMode="numeric"
-          min="0"
-          max="99"
-          value={partecipanti}
-          onChange={(e) => setPartecipanti(e.target.value)}
-          className="w-full px-3 py-2.5 rounded-xl border border-brand-gray-medium bg-brand-gray text-center text-lg font-medium focus:outline-none focus:ring-2 focus:ring-brand-black/20"
-          placeholder="0"
-          required
-        />
+        <div>
+          <label className="block text-xs text-brand-gray-dark mb-1">
+            Ora inizio
+          </label>
+          <input
+            type="time"
+            value={oraInizio}
+            onChange={(e) => setOraInizio(e.target.value)}
+            className="w-full px-3 py-2.5 rounded-xl border border-brand-gray-medium bg-brand-gray text-center font-medium focus:outline-none focus:ring-2 focus:ring-brand-black/20"
+            required
+          />
+        </div>
       </div>
 
       {/* Note */}

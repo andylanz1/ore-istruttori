@@ -4,9 +4,8 @@ import { useEffect, useState } from "react";
 
 interface Registrazione {
   id: string;
-  ore: number;
+  oraInizio: string;
   attivita: string;
-  partecipanti: number;
   note: string | null;
   stato: string;
 }
@@ -58,7 +57,7 @@ export default function OreList({ selectedDate, refreshKey }: OreListProps) {
           Lezioni del giorno
         </span>
         <span className="text-sm font-semibold">
-          {items.reduce((s, i) => s + i.ore, 0)}h — {items.length} {items.length === 1 ? "lezione" : "lezioni"}
+          {items.length} {items.length === 1 ? "lezione" : "lezioni"}
         </span>
       </div>
 
@@ -69,21 +68,18 @@ export default function OreList({ selectedDate, refreshKey }: OreListProps) {
         >
           <div className="flex-1">
             <div className="flex items-center gap-2">
-              <span className="font-semibold text-sm">
+              <span className="text-sm font-semibold text-brand-black">
+                {item.oraInizio}
+              </span>
+              <span className="font-medium text-sm">
                 {item.attivita}
               </span>
-              <span className="text-xs px-2 py-0.5 rounded-full bg-brand-gray text-brand-gray-dark">
-                {item.ore}h
-              </span>
             </div>
-            <div className="flex items-center gap-2 mt-0.5">
-              <span className="text-xs px-2 py-0.5 rounded-full bg-brand-gray text-brand-gray-dark">
-                {item.partecipanti} {item.partecipanti === 1 ? "partecipante" : "partecipanti"}
-              </span>
-              {item.note && (
-                <span className="text-xs text-brand-gray-dark italic">{item.note}</span>
-              )}
-            </div>
+            {item.note && (
+              <p className="text-xs text-brand-gray-dark italic mt-0.5">
+                {item.note}
+              </p>
+            )}
           </div>
 
           <button
