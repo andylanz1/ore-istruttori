@@ -15,7 +15,7 @@ export default async function ResponsabilePage() {
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
   const istruttori = await prisma.user.findMany({
-    where: { ruolo: "istruttore", attivo: true },
+    where: { ruolo: { in: ["istruttore", "responsabile"] }, attivo: true },
     include: {
       registrazioniOre: {
         where: { data: { gte: startOfMonth } },
@@ -60,10 +60,12 @@ export default async function ResponsabilePage() {
             <tbody>
               {istruttori.map((ist) => {
                 const lezioni = ist.registrazioniOre.length;
-                const compenso = ist.registrazioniOre.reduce(
+                const fisso = ist.compensoFissoMensile;
+                const compensoLezioni = ist.registrazioniOre.reduce(
                   (s, r) => s + (r.compenso ?? 0),
                   0
                 );
+                const compenso = fisso ?? compensoLezioni;
                 return (
                   <tr
                     key={ist.id}
@@ -74,11 +76,18 @@ export default async function ResponsabilePage() {
                         {ist.nome} {ist.cognome}
                       </span>
                     </td>
-                    <td className="text-center px-3 py-3">{lezioni}</td>
+                    <td className="text-center px-3 py-3">
+                      {fisso ? "—" : lezioni}
+                    </td>
                     <td className="text-right px-4 py-3 font-medium">
                       {compenso > 0
                         ? `€${compenso.toFixed(0)}`
                         : "—"}
+                      {fisso ? (
+                        <span className="block text-[10px] text-brand-gray-dark font-normal">
+                          fisso
+                        </span>
+                      ) : null}
                     </td>
                   </tr>
                 );

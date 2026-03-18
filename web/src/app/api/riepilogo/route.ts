@@ -16,6 +16,11 @@ export async function GET() {
   startOfWeek.setDate(startOfWeek.getDate() - diff);
   startOfWeek.setHours(0, 0, 0, 0);
 
+  const user = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { compensoFissoMensile: true },
+  });
+
   const [settimanaRegs, meseRegs, annoRegs] = await Promise.all([
     prisma.registrazioneOre.findMany({
       where: { userId: session.user.id, data: { gte: startOfWeek } },
@@ -41,10 +46,15 @@ export async function GET() {
     0
   );
 
+  // Se ha un fisso mensile, quello è il fatturato mensile
+  const fisso = user?.compensoFissoMensile ?? null;
+  const mesiPassati = now.getMonth(); // 0 = gennaio
+
   return NextResponse.json({
     settimanaLezioni: settimanaRegs.length,
     meseLezioni: meseRegs.length,
-    totaleFatturatoMese,
-    totaleFatturatoAnno,
+    totaleFatturatoMese: fisso ?? totaleFatturatoMese,
+    totaleFatturatoAnno: fisso ? fisso * (mesiPassati + 1) : totaleFatturatoAnno,
+    compensoFissoMensile: fisso,
   });
 }

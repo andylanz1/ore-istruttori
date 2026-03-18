@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import TariffeEditor from "@/components/ui/TariffeEditor";
+import FissoMensileEditor from "@/components/ui/FissoMensileEditor";
 import HamburgerMenu from "@/components/layout/HamburgerMenu";
 
 export default async function IstruttoreDetailPage({
@@ -24,6 +25,8 @@ export default async function IstruttoreDetailPage({
 
   if (!istruttore) redirect("/admin");
 
+  const haFissoMensile = istruttore.compensoFissoMensile !== null;
+
   return (
     <div className="min-h-screen bg-brand-gray">
       <header className="sticky top-0 z-40 bg-white border-b border-brand-gray-medium">
@@ -41,17 +44,29 @@ export default async function IstruttoreDetailPage({
             {istruttore.nome} {istruttore.cognome}
           </h2>
           <p className="text-sm text-brand-gray-dark">{istruttore.email}</p>
+          {istruttore.ruolo !== "istruttore" && (
+            <span className="inline-block mt-1 text-xs px-2 py-0.5 rounded-full bg-brand-gray text-brand-gray-dark capitalize">
+              {istruttore.ruolo}
+            </span>
+          )}
         </div>
 
-        <TariffeEditor
+        <FissoMensileEditor
           userId={istruttore.id}
-          tariffe={istruttore.tariffe.map((t) => ({
-            id: t.id,
-            attivita: t.attivita,
-            compenso: t.compenso,
-            compensoAlto: t.compensoAlto,
-          }))}
+          compensoFissoMensile={istruttore.compensoFissoMensile}
         />
+
+        {!haFissoMensile && (
+          <TariffeEditor
+            userId={istruttore.id}
+            tariffe={istruttore.tariffe.map((t) => ({
+              id: t.id,
+              attivita: t.attivita,
+              compenso: t.compenso,
+              compensoAlto: t.compensoAlto,
+            }))}
+          />
+        )}
       </main>
     </div>
   );

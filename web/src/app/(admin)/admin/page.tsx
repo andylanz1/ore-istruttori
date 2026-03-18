@@ -62,12 +62,18 @@ export default async function AdminPage() {
                   {ist._count.registrazioniOre} lezioni
                 </p>
                 <p className="text-xs text-brand-gray-dark">
-                  {ist.tariffe.length} tariffe
+                  {ist.compensoFissoMensile
+                    ? `€${ist.compensoFissoMensile}/mese`
+                    : `${ist.tariffe.length} tariffe`}
                 </p>
               </div>
             </div>
 
-            {ist.tariffe.length > 0 && (
+            {ist.compensoFissoMensile ? (
+              <p className="text-xs text-brand-gray-dark mt-2">
+                Compenso fisso mensile: €{ist.compensoFissoMensile}
+              </p>
+            ) : ist.tariffe.length > 0 ? (
               <div className="flex flex-wrap gap-1 mt-2">
                 {ist.tariffe.map((t) => (
                   <span
@@ -78,9 +84,7 @@ export default async function AdminPage() {
                   </span>
                 ))}
               </div>
-            )}
-
-            {ist.tariffe.length === 0 && (
+            ) : (
               <p className="text-xs text-brand-error mt-2">
                 Nessuna tariffa impostata
               </p>
