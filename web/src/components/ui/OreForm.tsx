@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ATTIVITA_OPTIONS, richiedePartecipanti } from "@/lib/attivita";
+import { ATTIVITA_OPTIONS } from "@/lib/attivita";
 
 interface OreFormProps {
   selectedDate: string;
@@ -11,12 +11,9 @@ interface OreFormProps {
 export default function OreForm({ selectedDate, onSaved }: OreFormProps) {
   const [oraInizio, setOraInizio] = useState("09:00");
   const [attivita, setAttivita] = useState<string>(ATTIVITA_OPTIONS[0]);
-  const [partecipanti, setPartecipanti] = useState<string>("");
   const [note, setNote] = useState("");
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ text: string; type: "success" | "error" } | null>(null);
-
-  const mostraPartecipanti = richiedePartecipanti(attivita);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -31,7 +28,6 @@ export default function OreForm({ selectedDate, onSaved }: OreFormProps) {
           data: selectedDate,
           oraInizio,
           attivita,
-          partecipanti: mostraPartecipanti && partecipanti ? parseInt(partecipanti) : undefined,
           note: note || undefined,
         }),
       });
@@ -43,7 +39,6 @@ export default function OreForm({ selectedDate, onSaved }: OreFormProps) {
 
       setMessage({ text: "Lezione salvata!", type: "success" });
       setNote("");
-      setPartecipanti("");
       onSaved();
 
       setTimeout(() => setMessage(null), 2000);
@@ -76,12 +71,7 @@ export default function OreForm({ selectedDate, onSaved }: OreFormProps) {
           </label>
           <select
             value={attivita}
-            onChange={(e) => {
-              setAttivita(e.target.value);
-              if (!richiedePartecipanti(e.target.value)) {
-                setPartecipanti("");
-              }
-            }}
+            onChange={(e) => setAttivita(e.target.value)}
             className="w-full px-3 py-2.5 rounded-xl border border-brand-gray-medium bg-brand-gray focus:outline-none focus:ring-2 focus:ring-brand-black/20"
           >
             {ATTIVITA_OPTIONS.map((a) => (
@@ -104,25 +94,6 @@ export default function OreForm({ selectedDate, onSaved }: OreFormProps) {
           />
         </div>
       </div>
-
-      {/* Partecipanti (condizionale) */}
-      {mostraPartecipanti && (
-        <div>
-          <label className="block text-xs text-brand-gray-dark mb-1">
-            Numero partecipanti
-          </label>
-          <input
-            type="number"
-            value={partecipanti}
-            onChange={(e) => setPartecipanti(e.target.value)}
-            min="1"
-            max="50"
-            placeholder="Es. 6"
-            className="w-full px-3 py-2.5 rounded-xl border border-brand-gray-medium bg-brand-gray placeholder-brand-gray-dark focus:outline-none focus:ring-2 focus:ring-brand-black/20"
-            required
-          />
-        </div>
-      )}
 
       {/* Note */}
       <div>

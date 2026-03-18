@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { richiedePartecipanti, SOGLIA_PARTECIPANTI } from "@/lib/attivita";
+import { SOGLIA_PARTECIPANTI } from "@/lib/attivita";
 
 // GET /api/ore?data=2026-03-17
 export async function GET(request: NextRequest) {
@@ -37,19 +37,14 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Campi obbligatori mancanti" }, { status: 400 });
   }
 
-  // Per attività con partecipanti, il campo è obbligatorio
-  if (richiedePartecipanti(attivita) && !partecipanti) {
-    return NextResponse.json({ error: "Numero partecipanti obbligatorio per questa attività" }, { status: 400 });
-  }
-
-  // Calcolo compenso automatico dalla tariffa
+  // Calcolo compenso automatico dalla tariffa (se partecipanti disponibile)
   let compenso: number | undefined;
   const tariffa = await prisma.tariffaIstruttore.findUnique({
     where: { userId_attivita: { userId: session.user.id, attivita } },
   });
 
   if (tariffa) {
-    if (tariffa.compensoAlto !== null && partecipanti >= SOGLIA_PARTECIPANTI) {
+    if (partecipanti && tariffa.compensoAlto !== null && partecipanti >= SOGLIA_PARTECIPANTI) {
       compenso = tariffa.compensoAlto;
     } else {
       compenso = tariffa.compenso;
