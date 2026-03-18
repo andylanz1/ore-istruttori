@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import Providers from "@/components/Providers";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -25,7 +26,7 @@ export default function RootLayout({
   return (
     <html lang="it">
       <body className="min-h-screen bg-brand-white text-brand-black">
-        {children}
+        <Providers>{children}</Providers>
       </body>
     </html>
   );
