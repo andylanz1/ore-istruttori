@@ -8,6 +8,7 @@ services:
       - AUTH_SECRET=${AUTH_SECRET}
       - NEXTAUTH_URL=https://istruttori.olisticzone.it
       - AUTH_TRUST_HOST=true
+      - SYNC_API_KEY=${SYNC_API_KEY}
     volumes:
       - ore-data:/app/data
     networks:
