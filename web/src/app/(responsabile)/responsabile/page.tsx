@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import HamburgerMenu from "@/components/layout/HamburgerMenu";
 
 export default async function ResponsabilePage() {
   const session = await auth();
@@ -37,9 +38,7 @@ export default async function ResponsabilePage() {
             alt="O-Zone"
             className="h-8 object-contain"
           />
-          <span className="text-sm text-brand-gray-dark">
-            Dashboard Responsabile
-          </span>
+          <HamburgerMenu />
         </div>
       </header>
 

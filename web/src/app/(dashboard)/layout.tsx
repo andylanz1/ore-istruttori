@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
-import BottomNav from "@/components/layout/BottomNav";
+import HamburgerMenu from "@/components/layout/HamburgerMenu";
 
 export default async function DashboardLayout({
   children,
@@ -14,7 +14,7 @@ export default async function DashboardLayout({
   }
 
   return (
-    <div className="min-h-screen bg-brand-gray pb-20">
+    <div className="min-h-screen bg-brand-gray">
       {/* Header */}
       <header className="sticky top-0 z-40 bg-white border-b border-brand-gray-medium">
         <div className="flex items-center justify-between px-4 h-14 max-w-lg mx-auto">
@@ -23,17 +23,12 @@ export default async function DashboardLayout({
             alt="O-Zone"
             className="h-8 object-contain"
           />
-          <span className="text-sm text-brand-gray-dark">
-            {session.user.name}
-          </span>
+          <HamburgerMenu />
         </div>
       </header>
 
       {/* Content */}
       <main className="max-w-lg mx-auto px-4 py-4">{children}</main>
-
-      {/* Bottom Navigation */}
-      <BottomNav />
     </div>
   );
 }

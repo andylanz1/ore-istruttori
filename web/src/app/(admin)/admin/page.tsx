@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
+import HamburgerMenu from "@/components/layout/HamburgerMenu";
 
 export default async function AdminPage() {
   const session = await auth();
@@ -11,7 +12,7 @@ export default async function AdminPage() {
   if (role !== "admin") redirect("/ore");
 
   const istruttori = await prisma.user.findMany({
-    where: { ruolo: "istruttore" },
+    where: { ruolo: { in: ["istruttore", "responsabile"] } },
     include: {
       tariffe: true,
       _count: { select: { registrazioniOre: true } },
@@ -28,7 +29,7 @@ export default async function AdminPage() {
             alt="O-Zone"
             className="h-8 object-contain"
           />
-          <span className="text-sm font-semibold">Admin</span>
+          <HamburgerMenu />
         </div>
       </header>
 

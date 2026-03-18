@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import TariffeEditor from "@/components/ui/TariffeEditor";
+import HamburgerMenu from "@/components/layout/HamburgerMenu";
 
 export default async function IstruttoreDetailPage({
   params,
@@ -30,7 +31,7 @@ export default async function IstruttoreDetailPage({
           <a href="/admin" className="text-sm text-brand-gray-dark">
             ← Indietro
           </a>
-          <span className="text-sm font-semibold">Tariffe</span>
+          <HamburgerMenu />
         </div>
       </header>
 
