@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { richiedePartecipanti, SOGLIA_PARTECIPANTI } from "@/lib/attivita";
 
 // GET /api/ore?data=2026-03-17
 export async function GET(request: NextRequest) {
@@ -30,10 +31,29 @@ export async function POST(request: NextRequest) {
   if (!session) return NextResponse.json({ error: "Non autorizzato" }, { status: 401 });
 
   const body = await request.json();
-  const { data, oraInizio, attivita, note } = body;
+  const { data, oraInizio, attivita, partecipanti, note } = body;
 
   if (!data || !oraInizio || !attivita) {
     return NextResponse.json({ error: "Campi obbligatori mancanti" }, { status: 400 });
+  }
+
+  // Per attività con partecipanti, il campo è obbligatorio
+  if (richiedePartecipanti(attivita) && !partecipanti) {
+    return NextResponse.json({ error: "Numero partecipanti obbligatorio per questa attività" }, { status: 400 });
+  }
+
+  // Calcolo compenso automatico dalla tariffa
+  let compenso: number | undefined;
+  const tariffa = await prisma.tariffaIstruttore.findUnique({
+    where: { userId_attivita: { userId: session.user.id, attivita } },
+  });
+
+  if (tariffa) {
+    if (tariffa.compensoAlto !== null && partecipanti >= SOGLIA_PARTECIPANTI) {
+      compenso = tariffa.compensoAlto;
+    } else {
+      compenso = tariffa.compenso;
+    }
   }
 
   const registrazione = await prisma.registrazioneOre.create({
@@ -42,6 +62,8 @@ export async function POST(request: NextRequest) {
       data: new Date(data + "T00:00:00.000Z"),
       oraInizio,
       attivita,
+      partecipanti: partecipanti ? parseInt(partecipanti) : null,
+      compenso: compenso ?? null,
       note,
     },
   });

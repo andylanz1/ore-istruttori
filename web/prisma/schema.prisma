@@ -51,7 +51,8 @@ model TariffaIstruttore {
   id            String   @id @default(cuid())
   userId        String
   attivita      String   // es. "Pilates", "PT 1h"
-  compenso      Float    // €/lezione per questo istruttore
+  compenso      Float    // €/lezione (o fascia bassa 1-4 partecipanti)
+  compensoAlto  Float?   // €/lezione fascia alta (5+ partecipanti), null = tariffa fissa
   note          String?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt

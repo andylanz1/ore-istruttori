@@ -48,6 +48,7 @@ export default async function IstruttoreDetailPage({
             id: t.id,
             attivita: t.attivita,
             compenso: t.compenso,
+            compensoAlto: t.compensoAlto,
           }))}
         />
       </main>

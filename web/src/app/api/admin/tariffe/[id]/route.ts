@@ -14,11 +14,15 @@ export async function PATCH(
   if (role !== "admin") return NextResponse.json({ error: "Non autorizzato" }, { status: 403 });
 
   const { id } = await params;
-  const { compenso } = await request.json();
+  const body = await request.json();
+
+  const data: { compenso?: number; compensoAlto?: number | null } = {};
+  if (body.compenso !== undefined) data.compenso = body.compenso;
+  if (body.compensoAlto !== undefined) data.compensoAlto = body.compensoAlto;
 
   const tariffa = await prisma.tariffaIstruttore.update({
     where: { id },
-    data: { compenso },
+    data,
   });
 
   return NextResponse.json(tariffa);
