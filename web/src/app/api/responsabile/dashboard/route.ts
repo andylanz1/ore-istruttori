@@ -28,6 +28,9 @@ export async function GET(request: NextRequest) {
         where: { data: { gte: startOfMonth, lt: endOfMonth } },
       },
       tariffe: true,
+      compensiMensili: {
+        where: { mese, anno },
+      },
     },
     orderBy: { cognome: "asc" },
   });
@@ -46,10 +49,11 @@ export async function GET(request: NextRequest) {
     const confermate = lezioni.filter((r) => r.stato === "confermato");
     const daConfermare = lezioni.filter((r) => r.stato === "da_confermare");
 
-    // Compenso
+    // Compenso: storico (CompensoMensile) > fisso mensile > somma lezioni
+    const compensoStorico = ist.compensiMensili.length > 0 ? ist.compensiMensili[0].importo : null;
     const fisso = ist.compensoFissoMensile;
     const compensoLezioni = lezioni.reduce((s, r) => s + (r.compenso ?? 0), 0);
-    const compensoTotale = fisso ?? compensoLezioni;
+    const compensoTotale = compensoStorico ?? fisso ?? compensoLezioni;
 
     // Ore (each lesson = 1h unless PT 30 Min = 0.5h)
     const ore = lezioni.reduce((s, r) => {
@@ -89,6 +93,7 @@ export async function GET(request: NextRequest) {
       cognome: ist.cognome,
       ruolo: ist.ruolo,
       compensoFissoMensile: fisso,
+      compensoStorico: compensoStorico,
       lezioniTotali: lezioni.length,
       lezioniConfermate: confermate.length,
       lezioniDaConfermare: daConfermare.length,

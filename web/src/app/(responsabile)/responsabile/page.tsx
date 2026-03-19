@@ -11,6 +11,7 @@ type IstruttoreStats = {
   cognome: string;
   ruolo: string;
   compensoFissoMensile: number | null;
+  compensoStorico: number | null;
   lezioniTotali: number;
   lezioniConfermate: number;
   lezioniDaConfermare: number;
@@ -218,9 +219,11 @@ export default function ResponsabilePage() {
                   <tr key={ist.id} className="border-b border-brand-gray last:border-0 hover:bg-brand-gray/50">
                     <td className="px-3 py-2.5">
                       <span className="font-medium">{ist.nome} {ist.cognome}</span>
-                      {ist.compensoFissoMensile && (
+                      {ist.compensoStorico ? (
+                        <span className="ml-1 text-[10px] text-blue-600 font-medium">STORICO</span>
+                      ) : ist.compensoFissoMensile ? (
                         <span className="ml-1 text-[10px] text-amber-600 font-medium">FISSO</span>
-                      )}
+                      ) : null}
                     </td>
                     <td className="text-center px-2 py-2.5">{ist.lezioniTotali}</td>
                     <td className="text-center px-2 py-2.5">{ist.ore}</td>
