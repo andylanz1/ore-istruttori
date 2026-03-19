@@ -1,20 +1,22 @@
 "use client";
 
 import { useCallback, useState } from "react";
-import OreForm from "@/components/ui/OreForm";
 import OreList from "@/components/ui/OreList";
 
+function toLocalDateStr(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
 export default function OrePage() {
-  const [selectedDate, setSelectedDate] = useState(() => {
-    const today = new Date();
-    return today.toISOString().split("T")[0];
-  });
-  const [refreshKey, setRefreshKey] = useState(0);
+  const [selectedDate, setSelectedDate] = useState(() => toLocalDateStr(new Date()));
   const [pendingCount, setPendingCount] = useState(0);
   const handlePendingCount = useCallback((count: number) => setPendingCount(count), []);
 
   // Navigazione settimana
-  const date = new Date(selectedDate + "T00:00:00");
+  const date = new Date(selectedDate + "T12:00:00");
   const startOfWeek = new Date(date);
   startOfWeek.setDate(date.getDate() - ((date.getDay() + 6) % 7)); // lunedì
 
@@ -27,15 +29,15 @@ export default function OrePage() {
   const dayNames = ["Lun", "Mar", "Mer", "Gio", "Ven", "Sab", "Dom"];
 
   function prevWeek() {
-    const d = new Date(selectedDate + "T00:00:00");
+    const d = new Date(selectedDate + "T12:00:00");
     d.setDate(d.getDate() - 7);
-    setSelectedDate(d.toISOString().split("T")[0]);
+    setSelectedDate(toLocalDateStr(d));
   }
 
   function nextWeek() {
-    const d = new Date(selectedDate + "T00:00:00");
+    const d = new Date(selectedDate + "T12:00:00");
     d.setDate(d.getDate() + 7);
-    setSelectedDate(d.toISOString().split("T")[0]);
+    setSelectedDate(toLocalDateStr(d));
   }
 
   const monthYear = date.toLocaleDateString("it-IT", {
@@ -69,10 +71,9 @@ export default function OrePage() {
       {/* Week day selector */}
       <div className="grid grid-cols-7 gap-1">
         {weekDays.map((d, i) => {
-          const dateStr = d.toISOString().split("T")[0];
+          const dateStr = toLocalDateStr(d);
           const isSelected = dateStr === selectedDate;
-          const isToday =
-            dateStr === new Date().toISOString().split("T")[0];
+          const isToday = dateStr === toLocalDateStr(new Date());
 
           return (
             <button
@@ -107,14 +108,8 @@ export default function OrePage() {
         </div>
       )}
 
-      {/* Form inserimento */}
-      <OreForm
-        selectedDate={selectedDate}
-        onSaved={() => setRefreshKey((k) => k + 1)}
-      />
-
       {/* Lista ore del giorno */}
-      <OreList selectedDate={selectedDate} refreshKey={refreshKey} onPendingCount={handlePendingCount} />
+      <OreList selectedDate={selectedDate} refreshKey={0} onPendingCount={handlePendingCount} />
     </div>
   );
 }
