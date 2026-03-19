@@ -16,7 +16,10 @@ export async function GET(request: NextRequest) {
 
   const registrazioni = await prisma.registrazioneOre.findMany({
     where: {
-      userId: session.user.id,
+      OR: [
+        { userId: session.user.id },
+        { userId: null, stato: "da_confermare" }, // TURNI lessons visible to all
+      ],
       data: { gte: startOfDay, lte: endOfDay },
     },
     orderBy: { oraInizio: "asc" },

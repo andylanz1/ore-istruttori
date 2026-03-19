@@ -44,6 +44,8 @@ export async function POST(request: NextRequest) {
     }
 
     for (const reg of registrazioni) {
+      if (!reg.userId) continue; // Skip TURNI lessons
+
       // Lookup tariff for this instructor + activity
       const tariffa = await prisma.tariffaIstruttore.findUnique({
         where: { userId_attivita: { userId: reg.userId, attivita: reg.attivita } },

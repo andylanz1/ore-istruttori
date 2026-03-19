@@ -17,6 +17,7 @@ model User {
   ruolo                String    @default("istruttore") // "admin" | "responsabile" | "istruttore"
   attivo               Boolean   @default(true)
   compensoFissoMensile Float?    // €/mese fisso (alternativo a tariffe per lezione)
+  dbgymNickname        String?   // nickname in DBGym PrenotazioniLezioni.Note (es. "stefania", "raky")
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
@@ -30,18 +31,19 @@ model User {
 
 model RegistrazioneOre {
   id            String   @id @default(cuid())
-  userId        String
+  userId        String?  // nullable per lezioni TURNI (rotazione)
   data          DateTime // giorno specifico
   oraInizio     String   // "09:00" — ora inizio lezione
   attivita      String   // es. "Pilates", "In-Trinity", "WBS"
   partecipanti  Int?     // popolato automaticamente da DBGym
   compenso      Float?   // € calcolato in base a tariffa + partecipanti
   note          String?
-  stato         String   @default("bozza") // "bozza" | "confermato"
+  stato         String   @default("bozza") // "bozza" | "da_confermare" | "confermato" | "rifiutato"
+  sorgente      String   @default("manuale") // "manuale" | "dbgym"
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, data, oraInizio])
   @@map("registrazioni_ore")

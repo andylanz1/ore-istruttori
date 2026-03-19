@@ -21,6 +21,13 @@ export async function DELETE(
     return NextResponse.json({ error: "Non trovato" }, { status: 404 });
   }
 
+  if (registrazione.sorgente === "dbgym") {
+    return NextResponse.json(
+      { error: "Le lezioni da DBGym non possono essere eliminate. Usa Rifiuta." },
+      { status: 400 }
+    );
+  }
+
   await prisma.registrazioneOre.delete({ where: { id } });
 
   return NextResponse.json({ ok: true });

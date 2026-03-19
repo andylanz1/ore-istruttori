@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import OreForm from "@/components/ui/OreForm";
 import OreList from "@/components/ui/OreList";
 
@@ -10,6 +10,8 @@ export default function OrePage() {
     return today.toISOString().split("T")[0];
   });
   const [refreshKey, setRefreshKey] = useState(0);
+  const [pendingCount, setPendingCount] = useState(0);
+  const handlePendingCount = useCallback((count: number) => setPendingCount(count), []);
 
   // Navigazione settimana
   const date = new Date(selectedDate + "T00:00:00");
@@ -95,6 +97,16 @@ export default function OrePage() {
         })}
       </div>
 
+      {/* Badge pendenti */}
+      {pendingCount > 0 && (
+        <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-2 flex items-center gap-2">
+          <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+          <span className="text-sm font-medium text-amber-700">
+            {pendingCount} {pendingCount === 1 ? "lezione" : "lezioni"} da confermare
+          </span>
+        </div>
+      )}
+
       {/* Form inserimento */}
       <OreForm
         selectedDate={selectedDate}
@@ -102,7 +114,7 @@ export default function OrePage() {
       />
 
       {/* Lista ore del giorno */}
-      <OreList selectedDate={selectedDate} refreshKey={refreshKey} />
+      <OreList selectedDate={selectedDate} refreshKey={refreshKey} onPendingCount={handlePendingCount} />
     </div>
   );
 }
