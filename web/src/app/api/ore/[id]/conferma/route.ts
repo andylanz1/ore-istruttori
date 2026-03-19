@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { SOGLIA_PARTECIPANTI } from "@/lib/attivita";
 
 // PATCH /api/ore/[id]/conferma
-// Actions: conferma, rifiuta, reclama (for TURNI)
+// Actions: conferma, rifiuta, reclama (for TURNI), annulla
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -13,9 +13,9 @@ export async function PATCH(
   if (!session) return NextResponse.json({ error: "Non autorizzato" }, { status: 401 });
 
   const { id } = await params;
-  const { azione } = (await request.json()) as { azione: "conferma" | "rifiuta" | "reclama" };
+  const { azione } = (await request.json()) as { azione: "conferma" | "rifiuta" | "reclama" | "annulla" };
 
-  if (!["conferma", "rifiuta", "reclama"].includes(azione)) {
+  if (!["conferma", "rifiuta", "reclama", "annulla"].includes(azione)) {
     return NextResponse.json({ error: "Azione non valida" }, { status: 400 });
   }
 
@@ -25,12 +25,27 @@ export async function PATCH(
     return NextResponse.json({ error: "Non trovato" }, { status: 404 });
   }
 
+  if (azione === "annulla") {
+    if (registrazione.userId !== session.user.id) {
+      return NextResponse.json({ error: "Non autorizzato" }, { status: 403 });
+    }
+    if (registrazione.stato !== "confermato") {
+      return NextResponse.json({ error: "Solo lezioni confermate possono essere annullate" }, { status: 400 });
+    }
+
+    await prisma.registrazioneOre.update({
+      where: { id },
+      data: { stato: "da_confermare" },
+    });
+
+    return NextResponse.json({ ok: true, stato: "da_confermare" });
+  }
+
   if (registrazione.stato !== "da_confermare") {
     return NextResponse.json({ error: "Lezione già gestita" }, { status: 400 });
   }
 
   if (azione === "conferma") {
-    // Only the assigned instructor can confirm
     if (registrazione.userId !== session.user.id) {
       return NextResponse.json({ error: "Non autorizzato" }, { status: 403 });
     }
@@ -44,26 +59,28 @@ export async function PATCH(
   }
 
   if (azione === "rifiuta") {
-    // Only the assigned instructor can reject
     if (registrazione.userId !== session.user.id) {
       return NextResponse.json({ error: "Non autorizzato" }, { status: 403 });
     }
 
+    // Rejected lesson becomes a TURNO — available for others to claim
     await prisma.registrazioneOre.update({
       where: { id },
-      data: { stato: "rifiutato" },
+      data: {
+        userId: null,
+        compenso: null,
+        stato: "da_confermare",
+      },
     });
 
-    return NextResponse.json({ ok: true, stato: "rifiutato" });
+    return NextResponse.json({ ok: true, stato: "da_confermare" });
   }
 
   if (azione === "reclama") {
-    // Only TURNI lessons (userId=null) can be claimed
     if (registrazione.userId !== null) {
       return NextResponse.json({ error: "Lezione già assegnata" }, { status: 400 });
     }
 
-    // Calculate compenso for the claiming instructor
     let compenso: number | null = null;
     const tariffa = await prisma.tariffaIstruttore.findUnique({
       where: {
