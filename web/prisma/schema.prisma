@@ -23,6 +23,7 @@ model User {
 
   registrazioniOre RegistrazioneOre[]
   tariffe          TariffaIstruttore[]
+  compensiMensili  CompensoMensile[]
   sessions         Session[]
   accounts         Account[]
 
@@ -64,6 +65,23 @@ model TariffaIstruttore {
 
   @@unique([userId, attivita])
   @@map("tariffe_istruttore")
+}
+
+// Storico compensi mensili (per mesi chiusi, es. gen/feb importati manualmente)
+model CompensoMensile {
+  id        String   @id @default(cuid())
+  userId    String
+  mese      Int      // 1-12
+  anno      Int      // es. 2026
+  importo   Float    // € totale del mese
+  note      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, mese, anno])
+  @@map("compensi_mensili")
 }
 
 // NextAuth.js models
