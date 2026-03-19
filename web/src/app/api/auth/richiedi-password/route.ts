@@ -71,36 +71,38 @@ export async function POST(req: NextRequest) {
       process.env.N8N_WHATSAPP_WEBHOOK_URL ||
       "https://n8n.andrealanzone.it/webhook/whatsapp-andrea";
 
-    const message = [
-      `Ciao ${user.nome}! 👋`,
+    const message1 = [
+      `Ciao ${user.nome}!`,
       ``,
-      `Ecco la tua password per accedere al portale ore O-Zone:`,
-      ``,
-      `🔑 *${password}*`,
-      ``,
-      `Accedi su: https://cms.olisticzone.it/login`,
-      `Usa il tuo numero di telefono (senza +39) come utente.`,
+      `Ecco la tua password per accedere al portale ore O-Zone.`,
+      `Accedi su: https://istruttori.olisticzone.it/login`,
+      `Usa il tuo numero di telefono come utente.`,
     ].join("\n");
 
-    const whatsappResponse = await fetch(n8nUrl, {
+    // Msg 1: istruzioni
+    const res1 = await fetch(n8nUrl, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        number: telefonoDb,
-        text: message,
-      }),
+      body: JSON.stringify({ number: telefonoDb, text: message1 }),
     });
 
-    if (!whatsappResponse.ok) {
-      console.error(
-        "Errore invio WhatsApp:",
-        whatsappResponse.status,
-        await whatsappResponse.text()
-      );
+    if (!res1.ok) {
+      console.error("Errore invio WhatsApp msg1:", res1.status, await res1.text());
       return NextResponse.json(
         { error: "Errore nell'invio del messaggio WhatsApp" },
         { status: 502 }
       );
+    }
+
+    // Msg 2: solo password (facile da copiare)
+    const res2 = await fetch(n8nUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ number: telefonoDb, text: password }),
+    });
+
+    if (!res2.ok) {
+      console.error("Errore invio WhatsApp msg2:", res2.status, await res2.text());
     }
 
     // Aggiorna rate limit solo dopo successo
