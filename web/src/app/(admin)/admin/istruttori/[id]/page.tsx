@@ -43,7 +43,7 @@ export default async function IstruttoreDetailPage({
           <h2 className="text-lg font-semibold">
             {istruttore.nome} {istruttore.cognome}
           </h2>
-          <p className="text-sm text-brand-gray-dark">{istruttore.email}</p>
+          <p className="text-sm text-brand-gray-dark">{istruttore.telefono}</p>
           {istruttore.ruolo !== "istruttore" && (
             <span className="inline-block mt-1 text-xs px-2 py-0.5 rounded-full bg-brand-gray text-brand-gray-dark capitalize">
               {istruttore.ruolo}

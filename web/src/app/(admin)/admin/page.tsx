@@ -55,7 +55,7 @@ export default async function AdminPage() {
                 <h3 className="font-semibold">
                   {ist.nome} {ist.cognome}
                 </h3>
-                <p className="text-xs text-brand-gray-dark">{ist.email}</p>
+                <p className="text-xs text-brand-gray-dark">{ist.telefono}</p>
               </div>
               <div className="text-right">
                 <p className="text-sm font-medium">

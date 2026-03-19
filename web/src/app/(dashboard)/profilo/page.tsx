@@ -41,7 +41,7 @@ export default function ProfiloPage() {
           </span>
         </div>
         <h2 className="text-lg font-semibold">{session?.user?.name}</h2>
-        <p className="text-sm text-brand-gray-dark">{session?.user?.email}</p>
+        <p className="text-sm text-brand-gray-dark">{session?.user?.email || "Istruttore"}</p>
       </div>
 
       {/* Stats lezioni */}

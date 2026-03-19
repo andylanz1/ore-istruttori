@@ -12,17 +12,21 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     Credentials({
       name: "Credenziali",
       credentials: {
-        email: { label: "Email", type: "email" },
+        telefono: { label: "Telefono", type: "tel" },
         password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
-        if (!credentials?.email || !credentials?.password) return null;
+        if (!credentials?.telefono || !credentials?.password) return null;
+
+        const input = (credentials.telefono as string).replace(/\s/g, "");
+        const telefono = input.startsWith("+39") ? input : `+39${input}`;
 
         const user = await prisma.user.findUnique({
-          where: { email: credentials.email as string },
+          where: { telefono },
         });
 
         if (!user || !user.attivo) return null;
+        if (!user.passwordHash) return null; // password non ancora impostata
 
         const isValid = await bcrypt.compare(
           credentials.password as string,
@@ -33,7 +37,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
         return {
           id: user.id,
-          email: user.email,
+          email: user.email ?? undefined,
           name: `${user.nome} ${user.cognome}`,
           role: user.ruolo,
         };
