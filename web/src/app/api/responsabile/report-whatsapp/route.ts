@@ -3,6 +3,13 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { CAPIENZA_MAX } from "@/lib/attivita";
 
+const GIORNI_SETTIMANA = ["domenica", "lunedi", "martedi", "mercoledi", "giovedi", "venerdi", "sabato"];
+
+function getGiornoSettimana(dateStr: string): string {
+  const d = new Date(dateStr + "T12:00:00");
+  return GIORNI_SETTIMANA[d.getDay()];
+}
+
 export async function POST(request: NextRequest) {
   const session = await auth();
   if (!session) return NextResponse.json({ error: "Non autorizzato" }, { status: 401 });
@@ -31,6 +38,9 @@ export async function POST(request: NextRequest) {
       registrazioniOre: {
         where: { data: { gte: startOfMonth, lt: endOfMonth } },
       },
+      compensiMensili: {
+        where: { mese, anno },
+      },
     },
     orderBy: { cognome: "asc" },
   });
@@ -45,9 +55,10 @@ export async function POST(request: NextRequest) {
     const lezioni = ist.registrazioniOre.filter(
       (r) => r.stato === "confermato" || r.stato === "da_confermare"
     );
+    const compensoStorico = ist.compensiMensili.length > 0 ? ist.compensiMensili[0].importo : null;
     const fisso = ist.compensoFissoMensile;
     const compensoLezioni = lezioni.reduce((s, r) => s + (r.compenso ?? 0), 0);
-    const compenso = fisso ?? compensoLezioni;
+    const compenso = compensoStorico ?? fisso ?? compensoLezioni;
     const ore = lezioni.reduce(
       (s, r) => s + (r.attivita === "PT 30 Min" ? 0.5 : 1),
       0
@@ -78,13 +89,14 @@ export async function POST(request: NextRequest) {
       mediaPart,
       riemp,
       fisso,
+      isStorico: compensoStorico !== null,
     };
   });
 
   // Turni disponibili
   const turni = tutteLezioni.filter((r) => r.userId === null && r.stato === "da_confermare");
 
-  // Turni reclamati (confermati con sorgente=dbgym che ora hanno un userId)
+  // Turni reclamati
   const reclamati = tutteLezioni.filter(
     (r) => r.userId !== null && r.stato === "confermato" && r.sorgente === "dbgym"
   );
@@ -118,17 +130,27 @@ export async function POST(request: NextRequest) {
   lines.push(`Lezioni: ${totLezioni}`);
   lines.push(`Compensi: ${totCompenso.toFixed(0)}EUR`);
   lines.push(`Riempimento medio: ${avgRiempVal.toFixed(0)}%`);
-  lines.push("");
-
-  // Per istruttore
-  lines.push(`DETTAGLIO ISTRUTTORI`);
-  for (const s of stats) {
-    const tag = s.fisso ? " (fisso)" : "";
-    lines.push(
-      `${s.nome}: ${s.lezioni} lez, ${s.ore}h, ${s.compenso.toFixed(0)}EUR${tag}, ${s.mediaPart.toFixed(1)} pers/lez, riemp ${s.riemp.toFixed(0)}%`
-    );
+  if (avgRiempVal < 80) {
+    lines.push(`ATTENZIONE: riempimento sotto l'80%, situazione da migliorare`);
   }
   lines.push("");
+
+  // Per istruttore (con spaziatura)
+  lines.push(`DETTAGLIO ISTRUTTORI`);
+  lines.push("");
+  for (const s of stats) {
+    const tag = s.isStorico ? " (storico)" : s.fisso ? " (fisso)" : "";
+    lines.push(`${s.nome}${tag}`);
+    lines.push(`  ${s.lezioni} lezioni, ${s.ore}h, ${s.compenso.toFixed(0)}EUR`);
+    if (s.mediaPart > 0) {
+      const riempWarning = s.riemp > 0 && s.riemp < 80 ? " -- ATTENZIONE" : "";
+      lines.push(`  ${s.mediaPart.toFixed(1)} pers/lez, riempimento ${s.riemp.toFixed(0)}%${riempWarning}`);
+    }
+    if (s.ore > 0) {
+      lines.push(`  Compenso/ora: ${s.compensoOra.toFixed(1)}EUR/h`);
+    }
+    lines.push("");
+  }
 
   // Classifiche
   lines.push(`CLASSIFICHE`);
@@ -150,7 +172,20 @@ export async function POST(request: NextRequest) {
     lines.push("");
     lines.push(`TURNI NON RECLAMATI:`);
     for (const t of turni.slice(0, 20)) {
-      lines.push(`  ${t.data.toISOString().slice(0, 10)} ${t.oraInizio} ${t.attivita}`);
+      const dataStr = t.data.toISOString().slice(0, 10);
+      const giorno = getGiornoSettimana(dataStr);
+      const isSabato = giorno === "sabato";
+      // note field contains "Rifiutato da Nome Cognome" if someone refused
+      const nota = t.note;
+      let dettaglio = "";
+      if (isSabato) {
+        dettaglio = " (sabato)";
+      } else if (nota && nota.startsWith("Rifiutato da ")) {
+        dettaglio = ` - ${nota}`;
+      } else {
+        dettaglio = " (turno di rotazione)";
+      }
+      lines.push(`  ${dataStr} ${t.oraInizio} ${t.attivita}${dettaglio}`);
     }
     if (turni.length > 20) lines.push(`  ... e altri ${turni.length - 20}`);
   }

@@ -63,6 +63,13 @@ export async function PATCH(
       return NextResponse.json({ error: "Non autorizzato" }, { status: 403 });
     }
 
+    // Track who refused in the note field
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { nome: true, cognome: true },
+    });
+    const rifiutatoDa = user ? `${user.nome} ${user.cognome}` : "sconosciuto";
+
     // Rejected lesson becomes a TURNO — available for others to claim
     await prisma.registrazioneOre.update({
       where: { id },
@@ -70,6 +77,7 @@ export async function PATCH(
         userId: null,
         compenso: null,
         stato: "da_confermare",
+        note: `Rifiutato da ${rifiutatoDa}`,
       },
     });
 
