@@ -1,5 +1,6 @@
 export const ATTIVITA_OPTIONS = [
-  "Pilates",
+  "Pilates Sala 1",
+  "Pilates Sala 2",
   "In-Trinity",
   "WBS",
   "Piloga",
@@ -13,7 +14,8 @@ export const ATTIVITA_OPTIONS = [
 ] as const;
 
 export const ATTIVITA_CON_PARTECIPANTI = [
-  "Pilates",
+  "Pilates Sala 1",
+  "Pilates Sala 2",
   "In-Trinity",
   "WBS",
   "Piloga",
