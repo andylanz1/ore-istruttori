@@ -51,7 +51,13 @@ export async function POST(request: NextRequest) {
   });
 
   // Build stats
-  const stats = istruttori.map((ist) => {
+  // Se responsabile, escludi se stesso (admin vede tutto)
+  const userId = (session.user as { id: string }).id;
+  const istruttoriFiltrati = role === "responsabile"
+    ? istruttori.filter((ist) => ist.id !== userId)
+    : istruttori;
+
+  const stats = istruttoriFiltrati.map((ist) => {
     const lezioni = ist.registrazioniOre.filter(
       (r) => r.stato === "confermato" || r.stato === "da_confermare"
     );
