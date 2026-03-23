@@ -69,7 +69,7 @@ export async function POST(req: NextRequest) {
     // Invia via WhatsApp tramite n8n webhook
     const n8nUrl =
       process.env.N8N_WHATSAPP_WEBHOOK_URL ||
-      "https://n8n.andrealanzone.it/webhook/whatsapp-andrea";
+      "http://n8n-dcskgc44ok44k80scw8wkw4g:5678/webhook/whatsapp-andrea";
 
     const message1 = [
       `Ciao ${user.nome}!`,

@@ -51,13 +51,10 @@ export async function POST(request: NextRequest) {
   });
 
   // Build stats
-  // Se responsabile, escludi se stesso (admin vede tutto)
   const userId = (session.user as { id: string }).id;
-  const istruttoriFiltrati = role === "responsabile"
-    ? istruttori.filter((ist) => ist.id !== userId)
-    : istruttori;
+  const isResponsabile = role === "responsabile";
 
-  const stats = istruttoriFiltrati.map((ist) => {
+  const stats = istruttori.map((ist) => {
     const lezioni = ist.registrazioniOre.filter(
       (r) => r.stato === "confermato" || r.stato === "da_confermare"
     );
@@ -91,11 +88,13 @@ export async function POST(request: NextRequest) {
       lezioni: lezioni.length,
       ore,
       compenso,
-      compensoOra,
+      // Se responsabile, nascondi il proprio compenso/ora
+      compensoOra: isResponsabile && ist.id === userId ? 0 : compensoOra,
       mediaPart,
       riemp,
       fisso,
       isStorico: compensoStorico !== null,
+      isSelf: isResponsabile && ist.id === userId,
     };
   });
 
@@ -152,7 +151,7 @@ export async function POST(request: NextRequest) {
       const riempWarning = s.riemp > 0 && s.riemp < 80 ? " -- ATTENZIONE" : "";
       lines.push(`  ${s.mediaPart.toFixed(1)} pers/lez, riempimento ${s.riemp.toFixed(0)}%${riempWarning}`);
     }
-    if (s.ore > 0) {
+    if (s.ore > 0 && !s.isSelf) {
       lines.push(`  Compenso/ora: ${s.compensoOra.toFixed(1)}EUR/h`);
     }
     lines.push("");
@@ -221,7 +220,7 @@ export async function POST(request: NextRequest) {
   // Send via n8n webhook
   const n8nUrl =
     process.env.N8N_WHATSAPP_WEBHOOK_URL ||
-    "https://n8n.andrealanzone.it/webhook/whatsapp-andrea";
+    "http://n8n-dcskgc44ok44k80scw8wkw4g:5678/webhook/whatsapp-andrea";
 
   const res = await fetch(n8nUrl, {
     method: "POST",
