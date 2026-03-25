@@ -42,13 +42,10 @@ export async function GET(request: NextRequest) {
   });
 
   // Build per-instructor stats
-  // Se responsabile, escludi se stesso dalle statistiche (admin vede tutto)
   const userId = (session.user as { id: string }).id;
-  const istruttoriFiltrati = role === "responsabile"
-    ? istruttori.filter((ist) => ist.id !== userId)
-    : istruttori;
+  const isResponsabile = role === "responsabile";
 
-  const stats = istruttoriFiltrati.map((ist) => {
+  const stats = istruttori.map((ist) => {
     const lezioni = ist.registrazioniOre.filter(
       (r) => r.stato === "confermato" || r.stato === "da_confermare"
     );
@@ -105,7 +102,8 @@ export async function GET(request: NextRequest) {
       lezioniDaConfermare: daConfermare.length,
       ore,
       compensoTotale,
-      compensoPerOra: Math.round(compensoPerOra * 100) / 100,
+      // Se responsabile, nascondi il proprio compenso/ora
+      compensoPerOra: isResponsabile && ist.id === userId ? 0 : Math.round(compensoPerOra * 100) / 100,
       totalePartecipanti,
       mediaPartecipanti: Math.round(mediaPartecipanti * 10) / 10,
       riempimentoMedio: Math.round(riempimentoMedio * 10) / 10,

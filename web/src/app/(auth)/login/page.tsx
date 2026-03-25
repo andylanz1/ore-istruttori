@@ -98,7 +98,7 @@ export default function LoginPage() {
                     value={telefono}
                     onChange={(e) => setTelefono(e.target.value)}
                     className="w-full px-4 py-3 rounded-xl border border-brand-gray-medium bg-brand-gray text-brand-black placeholder-brand-gray-dark focus:outline-none focus:ring-2 focus:ring-brand-black/20 transition"
-                    placeholder="3279451839"
+                    placeholder="321456789"
                     required
                     autoComplete="tel"
                   />
@@ -174,7 +174,7 @@ export default function LoginPage() {
                     value={telefono}
                     onChange={(e) => setTelefono(e.target.value)}
                     className="w-full px-4 py-3 rounded-xl border border-brand-gray-medium bg-brand-gray text-brand-black placeholder-brand-gray-dark focus:outline-none focus:ring-2 focus:ring-brand-black/20 transition"
-                    placeholder="3279451839"
+                    placeholder="321456789"
                     required
                     autoComplete="tel"
                   />
