@@ -115,7 +115,7 @@ export async function POST(request: NextRequest) {
   const byOre = [...stats].sort((a, b) => b.ore - a.ore);
   const byCompenso = [...stats].sort((a, b) => b.compenso - a.compenso);
   const byPartecipanti = [...stats].sort((a, b) => b.mediaPart - a.mediaPart);
-  const byCompensoOra = [...stats].filter((s) => s.ore > 0).sort((a, b) => b.compensoOra - a.compensoOra);
+  const byCompensoOra = [...stats].filter((s) => s.ore > 0 && s.compensoOra > 0).sort((a, b) => b.compensoOra - a.compensoOra);
 
   // Build message
   const lines: string[] = [];

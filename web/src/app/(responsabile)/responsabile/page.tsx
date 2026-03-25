@@ -50,9 +50,24 @@ type DashboardData = {
   };
 };
 
+type ReportLezione = {
+  id: string;
+  data: string;
+  giornoSettimana: string;
+  oraInizio: string;
+  attivita: string;
+  istruttore: { id: string; nome: string; cognome: string } | null;
+  partecipanti: number | null;
+  compenso: number | null;
+  stato: string;
+};
+
+type GroupBy = "istruttore" | "giorno" | "attivita" | "giornoSettimana";
+
 type SortKey = "cognome" | "lezioniTotali" | "ore" | "compensoTotale" | "compensoPerOra" | "mediaPartecipanti" | "riempimentoMedio";
 
 const MESI = ["Gennaio", "Febbraio", "Marzo", "Aprile", "Maggio", "Giugno", "Luglio", "Agosto", "Settembre", "Ottobre", "Novembre", "Dicembre"];
+const GIORNI_ORD: Record<string, number> = { lunedi: 1, martedi: 2, mercoledi: 3, giovedi: 4, venerdi: 5, sabato: 6, domenica: 7 };
 
 export default function ResponsabilePage() {
   const { data: session, status } = useSession();
@@ -61,9 +76,18 @@ export default function ResponsabilePage() {
   const [loading, setLoading] = useState(true);
   const [sortKey, setSortKey] = useState<SortKey>("cognome");
   const [sortAsc, setSortAsc] = useState(true);
-  const [tab, setTab] = useState<"panoramica" | "classifiche" | "controllo">("panoramica");
+  const [tab, setTab] = useState<"panoramica" | "classifiche" | "controllo" | "report">("panoramica");
   const [sendingReport, setSendingReport] = useState(false);
   const [reportSent, setReportSent] = useState(false);
+
+  // Report tab state
+  const [reportData, setReportData] = useState<ReportLezione[]>([]);
+  const [reportLoading, setReportLoading] = useState(false);
+  const [groupBy, setGroupBy] = useState<GroupBy>("istruttore");
+  const [filtroIstruttore, setFiltroIstruttore] = useState("");
+  const [filtroAttivita, setFiltroAttivita] = useState("");
+  const [filtroGiorno, setFiltroGiorno] = useState("");
+  const [openGroups, setOpenGroups] = useState<Set<string>>(new Set());
 
   const now = new Date();
   const [mese, setMese] = useState(now.getMonth() + 1);
@@ -88,11 +112,31 @@ export default function ResponsabilePage() {
     }
   }, [mese, anno]);
 
+  const fetchReport = useCallback(async () => {
+    setReportLoading(true);
+    try {
+      const res = await fetch(`/api/responsabile/report?mese=${mese}&anno=${anno}`);
+      if (res.ok) {
+        const json = await res.json();
+        setReportData(json.lezioni);
+        setOpenGroups(new Set());
+      }
+    } finally {
+      setReportLoading(false);
+    }
+  }, [mese, anno]);
+
   useEffect(() => {
     if (status === "authenticated") fetchData();
   }, [status, fetchData]);
 
-  const sendReport = async () => {
+  useEffect(() => {
+    if (status === "authenticated" && tab === "report" && reportData.length === 0) {
+      fetchReport();
+    }
+  }, [status, tab, fetchReport, reportData.length]);
+
+  const sendWhatsappReport = async () => {
     setSendingReport(true);
     setReportSent(false);
     try {
@@ -143,6 +187,47 @@ export default function ResponsabilePage() {
 
   const meseNome = MESI[mese - 1];
 
+  // Report: filter + group
+  const filteredReport = reportData.filter((l) => {
+    if (filtroIstruttore && (l.istruttore ? l.istruttore.id : "__turno") !== filtroIstruttore) return false;
+    if (filtroAttivita && l.attivita !== filtroAttivita) return false;
+    if (filtroGiorno && l.giornoSettimana !== filtroGiorno) return false;
+    return true;
+  });
+
+  const reportGroups = groupReportData(filteredReport, groupBy);
+  const reportTotals = calcTotals(filteredReport);
+
+  // Unique values for filters
+  const istruttoriUnici = Array.from(
+    new Map(
+      reportData
+        .filter((l) => l.istruttore)
+        .map((l) => [l.istruttore!.id, l.istruttore!])
+    ).values()
+  ).sort((a, b) => a.cognome.localeCompare(b.cognome));
+
+  const attivitaUniche = Array.from(new Set(reportData.map((l) => l.attivita))).sort();
+  const giorniPresenti = Array.from(new Set(reportData.map((l) => l.giornoSettimana)))
+    .sort((a, b) => (GIORNI_ORD[a] ?? 99) - (GIORNI_ORD[b] ?? 99));
+
+  const toggleGroup = (key: string) => {
+    setOpenGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
+
+  const toggleAll = () => {
+    if (openGroups.size === reportGroups.length) {
+      setOpenGroups(new Set());
+    } else {
+      setOpenGroups(new Set(reportGroups.map((g) => g.key)));
+    }
+  };
+
   const SortIcon = ({ k }: { k: SortKey }) => {
     if (sortKey !== k) return <span className="text-gray-300 ml-0.5">&#x25B4;</span>;
     return <span className="ml-0.5">{sortAsc ? "\u25B4" : "\u25BE"}</span>;
@@ -167,7 +252,7 @@ export default function ResponsabilePage() {
           <h1 className="text-lg font-semibold">Dashboard {meseNome} {anno}</h1>
           <select
             value={mese}
-            onChange={(e) => setMese(parseInt(e.target.value))}
+            onChange={(e) => { setMese(parseInt(e.target.value)); setReportData([]); }}
             className="text-sm border border-brand-gray-medium rounded-lg px-3 py-1.5 bg-white"
           >
             {MESI.map((m, i) => (
@@ -186,7 +271,7 @@ export default function ResponsabilePage() {
 
         {/* Tabs */}
         <div className="flex gap-1 bg-white rounded-xl p-1 shadow-sm">
-          {(["panoramica", "classifiche", "controllo"] as const).map((t) => (
+          {(["panoramica", "classifiche", "controllo", "report"] as const).map((t) => (
             <button
               key={t}
               onClick={() => setTab(t)}
@@ -311,10 +396,167 @@ export default function ResponsabilePage() {
           </div>
         )}
 
+        {/* Tab: Report */}
+        {tab === "report" && (
+          <div className="space-y-4">
+            {reportLoading ? (
+              <div className="flex justify-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-dark" />
+              </div>
+            ) : (
+              <>
+                {/* Filters */}
+                <div className="bg-white rounded-2xl shadow-sm p-4 space-y-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div>
+                      <label className="block text-xs text-brand-gray-dark mb-1">Istruttore</label>
+                      <select
+                        value={filtroIstruttore}
+                        onChange={(e) => setFiltroIstruttore(e.target.value)}
+                        className="w-full text-sm border border-brand-gray-medium rounded-lg px-3 py-1.5 bg-white"
+                      >
+                        <option value="">Tutti</option>
+                        <option value="__turno">Turni (scoperto)</option>
+                        {istruttoriUnici.map((ist) => (
+                          <option key={ist.id} value={ist.id}>
+                            {ist.nome} {ist.cognome}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs text-brand-gray-dark mb-1">Attivita</label>
+                      <select
+                        value={filtroAttivita}
+                        onChange={(e) => setFiltroAttivita(e.target.value)}
+                        className="w-full text-sm border border-brand-gray-medium rounded-lg px-3 py-1.5 bg-white"
+                      >
+                        <option value="">Tutte</option>
+                        {attivitaUniche.map((a) => (
+                          <option key={a} value={a}>{a}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs text-brand-gray-dark mb-1">Giorno</label>
+                      <select
+                        value={filtroGiorno}
+                        onChange={(e) => setFiltroGiorno(e.target.value)}
+                        className="w-full text-sm border border-brand-gray-medium rounded-lg px-3 py-1.5 bg-white"
+                      >
+                        <option value="">Tutti</option>
+                        {giorniPresenti.map((g) => (
+                          <option key={g} value={g} className="capitalize">{g}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Group by toggle */}
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-xs text-brand-gray-dark">Raggruppa per:</span>
+                    {([
+                      ["istruttore", "Istruttore"],
+                      ["giorno", "Giorno"],
+                      ["attivita", "Servizio"],
+                      ["giornoSettimana", "Giorno sett."],
+                    ] as [GroupBy, string][]).map(([value, label]) => (
+                      <button
+                        key={value}
+                        onClick={() => { setGroupBy(value); setOpenGroups(new Set()); }}
+                        className={`px-3 py-1 text-xs rounded-full transition-colors ${
+                          groupBy === value
+                            ? "bg-brand-dark text-white"
+                            : "bg-brand-gray text-brand-gray-dark hover:bg-brand-gray-medium"
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Grouped results */}
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center px-1">
+                    <span className="text-xs text-brand-gray-dark">
+                      {filteredReport.length} lezioni in {reportGroups.length} gruppi
+                    </span>
+                    <button
+                      onClick={toggleAll}
+                      className="text-xs text-brand-dark hover:underline"
+                    >
+                      {openGroups.size === reportGroups.length ? "Chiudi tutti" : "Apri tutti"}
+                    </button>
+                  </div>
+
+                  {reportGroups.map((group) => (
+                    <div key={group.key} className="bg-white rounded-2xl shadow-sm overflow-hidden">
+                      <button
+                        onClick={() => toggleGroup(group.key)}
+                        className="w-full flex items-center justify-between px-4 py-3 text-sm font-medium hover:bg-brand-gray/50 transition-colors"
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className="text-brand-gray-dark">{openGroups.has(group.key) ? "\u25BE" : "\u25B8"}</span>
+                          <span>{group.label}</span>
+                        </div>
+                        <div className="flex gap-4 text-xs text-brand-gray-dark">
+                          <span>{group.numLezioni} lez</span>
+                          <span>{group.ore}h</span>
+                          {group.compenso > 0 && <span>{group.compenso.toFixed(0)}EUR</span>}
+                        </div>
+                      </button>
+
+                      {openGroups.has(group.key) && (
+                        <div className="divide-y divide-brand-gray border-t border-brand-gray-medium">
+                          {group.lezioni.map((l) => (
+                            <div key={l.id} className="flex items-center justify-between px-4 py-2 text-xs sm:text-sm">
+                              <div className="flex items-center gap-2 min-w-0">
+                                <StatoBadge stato={l.stato} />
+                                <span className="text-brand-gray-dark whitespace-nowrap">{l.data} {l.oraInizio}</span>
+                                <span className="truncate">{l.attivita}</span>
+                                {l.partecipanti !== null && (
+                                  <span className="text-brand-gray-dark whitespace-nowrap">({l.partecipanti} pers)</span>
+                                )}
+                              </div>
+                              <div className="text-right whitespace-nowrap ml-2">
+                                {groupBy !== "istruttore" && (
+                                  <span className="text-xs font-medium mr-2">
+                                    {l.istruttore ? `${l.istruttore.nome} ${l.istruttore.cognome[0]}.` : "SCOPERTO"}
+                                  </span>
+                                )}
+                                {l.compenso !== null && l.compenso > 0 && (
+                                  <span className="text-xs text-brand-gray-dark">{l.compenso.toFixed(0)}EUR</span>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+
+                  {/* Totale */}
+                  {filteredReport.length > 0 && (
+                    <div className="bg-brand-dark text-white rounded-2xl shadow-sm px-4 py-3 flex justify-between text-sm font-medium">
+                      <span>TOTALE</span>
+                      <div className="flex gap-4">
+                        <span>{reportTotals.numLezioni} lez</span>
+                        <span>{reportTotals.ore}h</span>
+                        {reportTotals.compenso > 0 && <span>{reportTotals.compenso.toFixed(0)}EUR</span>}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
+        )}
+
         {/* WhatsApp Report Button */}
         <div className="bg-white rounded-2xl shadow-sm p-4">
           <button
-            onClick={sendReport}
+            onClick={sendWhatsappReport}
             disabled={sendingReport}
             className="w-full py-3 rounded-xl font-medium text-sm transition-colors bg-green-600 text-white hover:bg-green-700 disabled:opacity-50"
           >
@@ -335,7 +577,78 @@ export default function ResponsabilePage() {
   );
 }
 
+// --- Helpers ---
+
+function groupReportData(lezioni: ReportLezione[], groupBy: GroupBy) {
+  const groups = new Map<string, { label: string; lezioni: ReportLezione[]; sortOrder: number }>();
+
+  for (const l of lezioni) {
+    let key: string;
+    let label: string;
+    let sortOrder: number;
+
+    switch (groupBy) {
+      case "istruttore":
+        key = l.istruttore?.id ?? "__turno";
+        label = l.istruttore ? `${l.istruttore.nome} ${l.istruttore.cognome}` : "Turni scoperti";
+        sortOrder = l.istruttore ? l.istruttore.cognome.charCodeAt(0) : 9999;
+        break;
+      case "giorno":
+        key = l.data;
+        label = `${l.giornoSettimana} ${l.data.slice(8)}/${l.data.slice(5, 7)}`;
+        sortOrder = new Date(l.data).getTime();
+        break;
+      case "attivita":
+        key = l.attivita;
+        label = l.attivita;
+        sortOrder = l.attivita.charCodeAt(0);
+        break;
+      case "giornoSettimana":
+        key = l.giornoSettimana;
+        label = l.giornoSettimana.charAt(0).toUpperCase() + l.giornoSettimana.slice(1);
+        sortOrder = GIORNI_ORD[l.giornoSettimana] ?? 99;
+        break;
+    }
+
+    if (!groups.has(key)) {
+      groups.set(key, { label, lezioni: [], sortOrder });
+    }
+    groups.get(key)!.lezioni.push(l);
+  }
+
+  return Array.from(groups.entries())
+    .sort((a, b) => a[1].sortOrder - b[1].sortOrder)
+    .map(([key, g]) => ({
+      key,
+      label: g.label,
+      lezioni: g.lezioni,
+      ...calcTotals(g.lezioni),
+    }));
+}
+
+function calcTotals(lezioni: ReportLezione[]) {
+  const ore = lezioni.reduce((s, l) => s + (l.attivita === "PT 30 Min" ? 0.5 : 1), 0);
+  const compenso = lezioni.reduce((s, l) => s + (l.compenso ?? 0), 0);
+  return { numLezioni: lezioni.length, ore, compenso };
+}
+
 // --- Sub-components ---
+
+function StatoBadge({ stato }: { stato: string }) {
+  const cls =
+    stato === "confermato"
+      ? "bg-green-100 text-green-700"
+      : stato === "da_confermare"
+      ? "bg-amber-100 text-amber-700"
+      : "bg-gray-100 text-gray-500";
+  const label =
+    stato === "confermato" ? "OK" : stato === "da_confermare" ? "?" : stato;
+  return (
+    <span className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-medium ${cls}`}>
+      {label}
+    </span>
+  );
+}
 
 function KpiCard({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
   return (

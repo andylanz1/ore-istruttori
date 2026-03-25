@@ -23,7 +23,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT\n    pl.Descrizione AS corso_dbgym,\n    CONVERT(VARCHAR(5), pi.DataInizio, 108) AS ora,\n    CONVERT(VARCHAR(10), CAST(pi.DataInizio AS DATE), 23) AS data,\n    COUNT(DISTINCT pi.IDUtente) AS partecipanti\nFROM dbgym.dbo.PrenotazioniIscrizione pi\nINNER JOIN dbgym.dbo.PrenotazioniLezioni pll\n    ON pi.IDPrenotazioneLezione = pll.IDPrenotazioneLezione\nINNER JOIN dbgym.dbo.Prenotazioni pl\n    ON pi.IDPrenotazione = pl.IDPrenotazione\nWHERE CAST(pi.DataInizio AS DATE) = CAST(DATEADD(day, -1, GETDATE()) AS DATE)\n  AND pi.IDUtente IS NOT NULL\n  AND pi.IDPrenotazione <> 172\nGROUP BY pl.Descrizione, CONVERT(VARCHAR(5), pi.DataInizio, 108), CAST(pi.DataInizio AS DATE)",
+        "query": "SELECT\n    pl.Descrizione AS corso_dbgym,\n    CONVERT(VARCHAR(5), pi.DataInizio, 108) AS ora,\n    CONVERT(VARCHAR(10), CAST(pi.DataInizio AS DATE), 23) AS data,\n    COUNT(DISTINCT pi.IDUtente) AS partecipanti\nFROM dbgym.dbo.PrenotazioniIscrizione pi\nINNER JOIN dbgym.dbo.PrenotazioniLezioni pll\n    ON pi.IDPrenotazioneLezione = pll.IDPrenotazioneLezione\nINNER JOIN dbgym.dbo.Prenotazioni pl\n    ON pi.IDPrenotazione = pl.IDPrenotazione\nWHERE CAST(pi.DataInizio AS DATE) = CAST(DATEADD(day, -1, GETDATE()) AS DATE)\n  AND pi.IDUtente IS NOT NULL\n  AND pi.IDPrenotazione <> 172\n  AND pl.Attivo <> 0\nGROUP BY pl.Descrizione, CONVERT(VARCHAR(5), pi.DataInizio, 108), CAST(pi.DataInizio AS DATE)",
         "options": {}
       },
       "id": "sql-presenze",
