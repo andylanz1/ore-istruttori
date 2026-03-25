@@ -68,6 +68,12 @@ type SortKey = "cognome" | "lezioniTotali" | "ore" | "compensoTotale" | "compens
 
 const MESI = ["Gennaio", "Febbraio", "Marzo", "Aprile", "Maggio", "Giugno", "Luglio", "Agosto", "Settembre", "Ottobre", "Novembre", "Dicembre"];
 const GIORNI_ORD: Record<string, number> = { lunedi: 1, martedi: 2, mercoledi: 3, giovedi: 4, venerdi: 5, sabato: 6, domenica: 7 };
+const GIORNI_NOMI = ["domenica", "lunedi", "martedi", "mercoledi", "giovedi", "venerdi", "sabato"];
+
+function giornoSettimanaFromData(dataStr: string): string {
+  const d = new Date(dataStr + "T00:00:00");
+  return GIORNI_NOMI[d.getDay()];
+}
 
 export default function ResponsabilePage() {
   const { data: session, status } = useSession();
@@ -88,6 +94,11 @@ export default function ResponsabilePage() {
   const [filtroAttivita, setFiltroAttivita] = useState("");
   const [filtroGiorno, setFiltroGiorno] = useState("");
   const [openGroups, setOpenGroups] = useState<Set<string>>(new Set());
+
+  // Controllo tab filters
+  const [filtroCtrlIstruttore, setFiltroCtrlIstruttore] = useState("");
+  const [filtroCtrlAttivita, setFiltroCtrlAttivita] = useState("");
+  const [filtroCtrlGiorno, setFiltroCtrlGiorno] = useState("");
 
   const now = new Date();
   const [mese, setMese] = useState(now.getMonth() + 1);
@@ -182,8 +193,20 @@ export default function ResponsabilePage() {
 
   // Control data
   const turni = data.controlloLezioni.filter(l => l.isTurno && l.stato === "da_confermare");
-  const daConfermare = data.controlloLezioni.filter(l => !l.isTurno && l.stato === "da_confermare");
+  const daConfermareAll = data.controlloLezioni.filter(l => !l.isTurno && l.stato === "da_confermare");
+  const daConfermare = daConfermareAll.filter((l) => {
+    if (filtroCtrlIstruttore && l.istruttore !== filtroCtrlIstruttore) return false;
+    if (filtroCtrlAttivita && l.attivita !== filtroCtrlAttivita) return false;
+    if (filtroCtrlGiorno && giornoSettimanaFromData(l.data) !== filtroCtrlGiorno) return false;
+    return true;
+  });
   const confermate = data.controlloLezioni.filter(l => l.stato === "confermato");
+
+  // Unique values for controllo filters (from unfiltered daConfermare)
+  const ctrlIstruttoriUnici = Array.from(new Set(daConfermareAll.map(l => l.istruttore).filter(Boolean) as string[])).sort();
+  const ctrlAttivitaUniche = Array.from(new Set(daConfermareAll.map(l => l.attivita))).sort();
+  const ctrlGiorniPresenti = Array.from(new Set(daConfermareAll.map(l => giornoSettimanaFromData(l.data))))
+    .sort((a, b) => (GIORNI_ORD[a] ?? 99) - (GIORNI_ORD[b] ?? 99));
 
   const meseNome = MESI[mese - 1];
 
@@ -266,7 +289,7 @@ export default function ResponsabilePage() {
           <KpiCard label="Lezioni totali" value={String(data.totali.lezioni)} />
           <KpiCard label="Compensi totali" value={`${data.totali.compenso}EUR`} />
           <KpiCard label="Riempimento medio" value={`${data.totali.riempimentoMedio}%`} />
-          <KpiCard label="Turni scoperti" value={String(data.turniDisponibili)} accent={data.turniDisponibili > 0} />
+          <KpiCard label="Turni da coprire" value={String(data.turniDisponibili)} accent={data.turniDisponibili > 0} />
         </div>
 
         {/* Tabs */}
@@ -349,8 +372,8 @@ export default function ResponsabilePage() {
           <div className="space-y-4">
             {/* Summary cards */}
             <div className="grid grid-cols-3 gap-3">
-              <KpiCard label="Turni scoperti" value={String(turni.length)} accent={turni.length > 0} />
-              <KpiCard label="Da confermare" value={String(daConfermare.length)} accent={daConfermare.length > 0} />
+              <KpiCard label="Turni da coprire" value={String(turni.length)} accent={turni.length > 0} />
+              <KpiCard label="Da confermare" value={String(daConfermareAll.length)} accent={daConfermareAll.length > 0} />
               <KpiCard label="Confermate" value={String(confermate.length)} />
             </div>
 
@@ -358,7 +381,7 @@ export default function ResponsabilePage() {
             {turni.length > 0 && (
               <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
                 <h3 className="px-4 py-3 font-medium text-sm border-b border-brand-gray-medium bg-amber-50 text-amber-800">
-                  Turni scoperti ({turni.length})
+                  Turni da coprire ({turni.length})
                 </h3>
                 <div className="divide-y divide-brand-gray">
                   {turni.map((l) => (
@@ -369,15 +392,53 @@ export default function ResponsabilePage() {
             )}
 
             {/* Da confermare */}
-            {daConfermare.length > 0 && (
+            {daConfermareAll.length > 0 && (
               <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
                 <h3 className="px-4 py-3 font-medium text-sm border-b border-brand-gray-medium bg-blue-50 text-blue-800">
-                  Da confermare ({daConfermare.length})
+                  Da confermare ({daConfermare.length}{daConfermare.length !== daConfermareAll.length ? ` di ${daConfermareAll.length}` : ""})
                 </h3>
+                {/* Filters */}
+                <div className="px-4 py-3 border-b border-brand-gray-medium bg-blue-50/30">
+                  <div className="grid grid-cols-3 gap-2">
+                    <select
+                      value={filtroCtrlIstruttore}
+                      onChange={(e) => setFiltroCtrlIstruttore(e.target.value)}
+                      className="text-xs border border-brand-gray-medium rounded-lg px-2 py-1.5 bg-white"
+                    >
+                      <option value="">Tutti</option>
+                      {ctrlIstruttoriUnici.map((nome) => (
+                        <option key={nome} value={nome}>{nome}</option>
+                      ))}
+                    </select>
+                    <select
+                      value={filtroCtrlAttivita}
+                      onChange={(e) => setFiltroCtrlAttivita(e.target.value)}
+                      className="text-xs border border-brand-gray-medium rounded-lg px-2 py-1.5 bg-white"
+                    >
+                      <option value="">Tutte</option>
+                      {ctrlAttivitaUniche.map((a) => (
+                        <option key={a} value={a}>{a}</option>
+                      ))}
+                    </select>
+                    <select
+                      value={filtroCtrlGiorno}
+                      onChange={(e) => setFiltroCtrlGiorno(e.target.value)}
+                      className="text-xs border border-brand-gray-medium rounded-lg px-2 py-1.5 bg-white capitalize"
+                    >
+                      <option value="">Tutti</option>
+                      {ctrlGiorniPresenti.map((g) => (
+                        <option key={g} value={g} className="capitalize">{g}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
                 <div className="divide-y divide-brand-gray">
                   {daConfermare.map((l) => (
                     <LessonRow key={l.id} lesson={l} />
                   ))}
+                  {daConfermare.length === 0 && (
+                    <p className="px-4 py-3 text-sm text-brand-gray-dark text-center">Nessun risultato per i filtri selezionati</p>
+                  )}
                 </div>
               </div>
             )}
@@ -416,7 +477,7 @@ export default function ResponsabilePage() {
                         className="w-full text-sm border border-brand-gray-medium rounded-lg px-3 py-1.5 bg-white"
                       >
                         <option value="">Tutti</option>
-                        <option value="__turno">Turni (scoperto)</option>
+                        <option value="__turno">Turni da coprire</option>
                         {istruttoriUnici.map((ist) => (
                           <option key={ist.id} value={ist.id}>
                             {ist.nome} {ist.cognome}
@@ -522,7 +583,7 @@ export default function ResponsabilePage() {
                               <div className="text-right whitespace-nowrap ml-2">
                                 {groupBy !== "istruttore" && (
                                   <span className="text-xs font-medium mr-2">
-                                    {l.istruttore ? `${l.istruttore.nome} ${l.istruttore.cognome[0]}.` : "SCOPERTO"}
+                                    {l.istruttore ? `${l.istruttore.nome} ${l.istruttore.cognome[0]}.` : "DA COPRIRE"}
                                   </span>
                                 )}
                                 {l.compenso !== null && l.compenso > 0 && (
@@ -590,7 +651,7 @@ function groupReportData(lezioni: ReportLezione[], groupBy: GroupBy) {
     switch (groupBy) {
       case "istruttore":
         key = l.istruttore?.id ?? "__turno";
-        label = l.istruttore ? `${l.istruttore.nome} ${l.istruttore.cognome}` : "Turni scoperti";
+        label = l.istruttore ? `${l.istruttore.nome} ${l.istruttore.cognome}` : "Turni da coprire";
         sortOrder = l.istruttore ? l.istruttore.cognome.charCodeAt(0) : 9999;
         break;
       case "giorno":
@@ -711,7 +772,7 @@ function LessonRow({ lesson }: { lesson: ControlloLezione }) {
         {lesson.istruttore ? (
           <span className="text-xs font-medium">{lesson.istruttore}</span>
         ) : (
-          <span className="text-xs text-amber-600 font-medium">SCOPERTO</span>
+          <span className="text-xs text-amber-600 font-medium">DA COPRIRE</span>
         )}
         {lesson.compenso !== null && lesson.compenso > 0 && (
           <span className="text-xs text-brand-gray-dark ml-2">{lesson.compenso.toFixed(0)}EUR</span>
