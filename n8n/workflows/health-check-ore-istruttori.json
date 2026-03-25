@@ -1,0 +1,68 @@
+{
+  "id": "health-check-ore-istruttori",
+  "name": "Health Check Ore Istruttori",
+  "active": false,
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 7 * * *"
+            }
+          ]
+        }
+      },
+      "id": "trigger",
+      "name": "Trigger 07:00",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [220, 300]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const checks = [];\n\n// 1. ore-istruttori app\ntry {\n  const r1 = await fetch('https://istruttori.olisticzone.it/login', { signal: AbortSignal.timeout(10000) });\n  if (r1.ok) {\n    checks.push({ name: 'ore-istruttori', ok: true });\n  } else {\n    checks.push({ name: 'ore-istruttori', ok: false, error: `HTTP ${r1.status}`, dove: 'VPS → docker logs ore-istruttori' });\n  }\n} catch (e) {\n  checks.push({ name: 'ore-istruttori', ok: false, error: e.message, dove: 'VPS → docker ps | grep ore-istruttori' });\n}\n\n// 2. mcp-dbgym\ntry {\n  const r2 = await fetch('http://mcp-dbgym:3100/health', { signal: AbortSignal.timeout(10000) });\n  if (r2.ok) {\n    checks.push({ name: 'mcp-dbgym', ok: true });\n  } else {\n    checks.push({ name: 'mcp-dbgym', ok: false, error: `HTTP ${r2.status}`, dove: 'VPS → docker logs mcp-dbgym' });\n  }\n} catch (e) {\n  checks.push({ name: 'mcp-dbgym', ok: false, error: e.message, dove: 'VPS → docker ps | grep mcp-dbgym' });\n}\n\n// 3. DB connection via mcp-dbgym query\ntry {\n  const r3 = await fetch('http://mcp-dbgym:3100/api/query', {\n    method: 'POST',\n    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + $env.DBGYM_API_KEY },\n    body: JSON.stringify({ sql: 'SELECT TOP 1 1 AS ok FROM dbgym.dbo.Prenotazioni WHERE IDAzienda = 1' }),\n    signal: AbortSignal.timeout(15000)\n  });\n  if (r3.ok) {\n    checks.push({ name: 'dbgym (SQL Server)', ok: true });\n  } else {\n    const body = await r3.text();\n    checks.push({ name: 'dbgym (SQL Server)', ok: false, error: body.slice(0, 100), dove: 'Controllare connessione SQL Server Windows 2012 — potrebbe essere spento o irraggiungibile' });\n  }\n} catch (e) {\n  checks.push({ name: 'dbgym (SQL Server)', ok: false, error: e.message, dove: 'Server Windows 2012 potrebbe essere offline. Controllare VPN/rete locale.' });\n}\n\nconst allOk = checks.every(c => c.ok);\nconst errors = checks.filter(c => !c.ok);\n\nlet text;\nif (allOk) {\n  text = 'Gestionale ore istruttori tutto ok';\n} else {\n  text = 'ATTENZIONE — Problemi rilevati:\\n';\n  for (const e of errors) {\n    text += `\\n${e.name}: ${e.error}\\nDove guardare: ${e.dove}\\n`;\n  }\n}\n\nreturn [{ json: { text, allOk } }];"
+      },
+      "id": "code-checks",
+      "name": "Health Checks",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [440, 300]
+    },
+    {
+      "parameters": {
+        "chatId": "-1002442024912",
+        "text": "={{ $json.text }}",
+        "additionalFields": {}
+      },
+      "id": "telegram",
+      "name": "Notifica Telegram",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [660, 300],
+      "credentials": {
+        "telegramApi": {
+          "id": "olisticzone_bot",
+          "name": "Telegram OlisticZone Bot"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Trigger 07:00": {
+      "main": [
+        [{ "node": "Health Checks", "type": "main", "index": 0 }]
+      ]
+    },
+    "Health Checks": {
+      "main": [
+        [{ "node": "Notifica Telegram", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

@@ -1,6 +1,6 @@
 {
   "id": "sync-partecipanti-dbgym",
-  "name": "🔄 Sync Partecipanti DBGym → ore-istruttori",
+  "name": "Sync Partecipanti DBGym -> ore-istruttori",
   "active": false,
   "nodes": [
     {
@@ -36,12 +36,13 @@
           "id": "YHZnCr0OGdg1ygM8",
           "name": "DBGym SQL Server"
         }
-      }
+      },
+      "continueOnFail": true
     },
     {
       "parameters": {
         "mode": "runOnceForAllItems",
-        "jsCode": "const MAPPING = {\n  'STUDIO 1 REFORMER': 'Pilates',\n  'STUDIO 2 REFORMER': 'Pilates',\n  'IN-TRINITY': 'In-Trinity',\n  'WBS POSTURALE': 'WBS',\n  'PILOGA': 'Piloga',\n  'SHAPE & TONE': 'Functional',\n  'EASY STUDIO 1': 'Easy Reformer',\n  'EASY STUDIO 2': 'Easy Reformer',\n  'WBS EASY POSTURALE': 'Easy WBS',\n  'ESTATE REFORMER': 'Pilates',\n  'ESTATE WBS': 'WBS',\n};\n\nconst rows = $input.all();\nif (rows.length === 0) {\n  return [{ json: { skip: true, motivo: 'Nessuna lezione ieri' } }];\n}\n\nconst data = rows[0].json.data;\nconst items = rows.map(r => {\n  const att = MAPPING[r.json.corso_dbgym];\n  if (!att) return null;\n  return {\n    attivita: att,\n    oraInizio: r.json.ora,\n    partecipanti: r.json.partecipanti\n  };\n}).filter(Boolean);\n\nreturn [{ json: { data, items, skip: false } }];"
+        "jsCode": "const MAPPING = {\n  'STUDIO 1 REFORMER': 'Pilates',\n  'STUDIO 2 REFORMER': 'Pilates',\n  'IN-TRINITY': 'In-Trinity',\n  'WBS POSTURALE': 'WBS',\n  'PILOGA': 'Piloga',\n  'SHAPE & TONE': 'Functional',\n  'EASY STUDIO 1': 'Easy Reformer',\n  'EASY STUDIO 2': 'Easy Reformer',\n  'WBS EASY POSTURALE': 'Easy WBS',\n  'ESTATE REFORMER': 'Pilates',\n  'ESTATE WBS': 'WBS',\n};\n\nconst rows = $input.all();\n\n// Check for SQL error\nif (rows.length > 0 && rows[0].json.error) {\n  return [{ json: { skip: false, error: true, errorMsg: rows[0].json.error.message || 'Errore SQL' } }];\n}\n\nif (rows.length === 0) {\n  return [{ json: { skip: true } }];\n}\n\nconst data = rows[0].json.data;\nconst items = rows.map(r => {\n  const att = MAPPING[r.json.corso_dbgym];\n  if (!att) return null;\n  return {\n    attivita: att,\n    oraInizio: r.json.ora,\n    partecipanti: r.json.partecipanti\n  };\n}).filter(Boolean);\n\nif (items.length === 0) {\n  return [{ json: { skip: true } }];\n}\n\nreturn [{ json: { data, items, skip: false, error: false } }];"
       },
       "id": "code-mapping",
       "name": "Mapping Nomi",
@@ -59,8 +60,17 @@
           },
           "conditions": [
             {
-              "id": "cond-1",
+              "id": "cond-skip",
               "leftValue": "={{ $json.skip }}",
+              "rightValue": false,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            },
+            {
+              "id": "cond-noerr",
+              "leftValue": "={{ $json.error }}",
               "rightValue": false,
               "operator": {
                 "type": "boolean",
@@ -73,7 +83,7 @@
         "options": {}
       },
       "id": "if-skip",
-      "name": "Ha lezioni?",
+      "name": "Ha lezioni (no error)?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [880, 300]
@@ -100,32 +110,60 @@
       "name": "POST Sync Partecipanti",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1100, 240]
+      "position": [1100, 240],
+      "continueOnFail": true
     },
     {
       "parameters": {
         "mode": "runOnceForAllItems",
-        "jsCode": "const result = $input.first().json;\nconst skipData = $('Mapping Nomi').first().json;\n\nlet text;\nif (skipData.skip) {\n  text = `🔄 *Sync Partecipanti*\\nNessuna lezione ieri — skip.`;\n} else {\n  text = `🔄 *Sync Partecipanti*\\n📅 ${result.data || skipData.data}\\n✅ Aggiornate: ${result.aggiornate || 0}\\n⚠️ Non trovate: ${result.nonTrovate || 0}`;\n  if (result.dettagli) {\n    for (const d of result.dettagli) {\n      const icon = d.registrazioni > 0 ? '✅' : '❌';\n      text += `\\n${icon} ${d.attivita} ${d.oraInizio} → ${d.partecipanti} pers. (${d.registrazioni} reg.)`;\n    }\n  }\n}\n\nreturn [{ json: { text } }];"
+        "jsCode": "const mappingData = $('Mapping Nomi').first().json;\n\n// SQL error\nif (mappingData.error) {\n  return [{ json: { hasError: true, text: `ERRORE Sync Partecipanti\\nSQL: ${mappingData.errorMsg}` } }];\n}\n\n// HTTP error\nconst result = $input.first().json;\nif (result.error || result.statusCode >= 400) {\n  const msg = result.error?.message || result.message || JSON.stringify(result).slice(0, 200);\n  return [{ json: { hasError: true, text: `ERRORE Sync Partecipanti\\nAPI: ${msg}` } }];\n}\n\n// Success — silent\nreturn [{ json: { hasError: false } }];"
       },
       "id": "code-riepilogo",
-      "name": "Formatta Riepilogo",
+      "name": "Check Errori",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [1320, 300]
     },
     {
       "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "cond-err",
+              "leftValue": "={{ $json.hasError }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-error",
+      "name": "Ha errori?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1540, 300]
+    },
+    {
+      "parameters": {
         "chatId": "-1002442024912",
         "text": "={{ $json.text }}",
-        "additionalFields": {
-          "parse_mode": "Markdown"
-        }
+        "additionalFields": {}
       },
       "id": "telegram-notify",
       "name": "Notifica Telegram",
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
-      "position": [1540, 300],
+      "position": [1760, 240],
       "credentials": {
         "telegramApi": {
           "id": "olisticzone_bot",
@@ -147,23 +185,29 @@
     },
     "Mapping Nomi": {
       "main": [
-        [{ "node": "Ha lezioni?", "type": "main", "index": 0 }]
+        [{ "node": "Ha lezioni (no error)?", "type": "main", "index": 0 }]
       ]
     },
-    "Ha lezioni?": {
+    "Ha lezioni (no error)?": {
       "main": [
         [{ "node": "POST Sync Partecipanti", "type": "main", "index": 0 }],
-        [{ "node": "Formatta Riepilogo", "type": "main", "index": 0 }]
+        [{ "node": "Check Errori", "type": "main", "index": 0 }]
       ]
     },
     "POST Sync Partecipanti": {
       "main": [
-        [{ "node": "Formatta Riepilogo", "type": "main", "index": 0 }]
+        [{ "node": "Check Errori", "type": "main", "index": 0 }]
       ]
     },
-    "Formatta Riepilogo": {
+    "Check Errori": {
       "main": [
-        [{ "node": "Notifica Telegram", "type": "main", "index": 0 }]
+        [{ "node": "Ha errori?", "type": "main", "index": 0 }]
+      ]
+    },
+    "Ha errori?": {
+      "main": [
+        [{ "node": "Notifica Telegram", "type": "main", "index": 0 }],
+        []
       ]
     }
   },
