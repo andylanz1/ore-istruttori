@@ -166,6 +166,8 @@ export default function ResponsabilePage() {
     }
   }, [status, tab, fetchReport, reportData.length]);
 
+  const [pdfLoading, setPdfLoading] = useState(false);
+
   const sendWhatsappReport = async () => {
     setSendingReport(true);
     setReportSent(false);
@@ -178,6 +180,50 @@ export default function ResponsabilePage() {
       if (res.ok) setReportSent(true);
     } finally {
       setSendingReport(false);
+    }
+  };
+
+  const openPdfPreview = () => {
+    window.open(`/api/responsabile/report-pdf?mese=${mese}&anno=${anno}`, "_blank");
+  };
+
+  const downloadPdf = async () => {
+    setPdfLoading(true);
+    try {
+      const res = await fetch(`/api/responsabile/report-pdf?mese=${mese}&anno=${anno}`);
+      if (!res.ok) return;
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `riepilogo-ore-${meseNome.toLowerCase()}-${anno}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } finally {
+      setPdfLoading(false);
+    }
+  };
+
+  const sharePdf = async () => {
+    setPdfLoading(true);
+    try {
+      const res = await fetch(`/api/responsabile/report-pdf?mese=${mese}&anno=${anno}`);
+      if (!res.ok) return;
+      const blob = await res.blob();
+      const file = new File([blob], `riepilogo-ore-${meseNome.toLowerCase()}-${anno}.pdf`, { type: "application/pdf" });
+      if (navigator.share && navigator.canShare?.({ files: [file] })) {
+        await navigator.share({ files: [file], title: `Riepilogo ore ${meseNome} ${anno}` });
+      } else {
+        // Fallback: download
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = file.name;
+        a.click();
+        URL.revokeObjectURL(url);
+      }
+    } finally {
+      setPdfLoading(false);
     }
   };
 
@@ -618,6 +664,52 @@ export default function ResponsabilePage() {
                       </button>
                     ))}
                   </div>
+                </div>
+
+                {/* PDF Actions */}
+                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl shadow-sm p-4 border border-blue-100">
+                  <div className="flex items-center gap-2 mb-3">
+                    <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                    </svg>
+                    <span className="font-medium text-sm text-blue-900">Report PDF — un foglio per istruttore</span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2">
+                    <button
+                      onClick={openPdfPreview}
+                      disabled={pdfLoading}
+                      className="flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-medium bg-white text-blue-700 border border-blue-200 hover:bg-blue-50 transition-colors disabled:opacity-50"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                      </svg>
+                      Anteprima
+                    </button>
+                    <button
+                      onClick={downloadPdf}
+                      disabled={pdfLoading}
+                      className="flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-medium bg-blue-600 text-white hover:bg-blue-700 transition-colors disabled:opacity-50"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                      Scarica
+                    </button>
+                    <button
+                      onClick={sharePdf}
+                      disabled={pdfLoading}
+                      className="flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-medium bg-green-600 text-white hover:bg-green-700 transition-colors disabled:opacity-50"
+                    >
+                      <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z" />
+                      </svg>
+                      WhatsApp
+                    </button>
+                  </div>
+                  {pdfLoading && (
+                    <p className="text-center text-xs text-blue-600 mt-2">Generazione PDF in corso...</p>
+                  )}
                 </div>
 
                 {/* Grouped results */}
