@@ -9,14 +9,12 @@ const MESI_NOMI = [
 ];
 const GIORNI = ["Dom", "Lun", "Mar", "Mer", "Gio", "Ven", "Sab"];
 
-// Brand colors
 const C = {
   primary: "#1e3a5f",
   primaryLight: "#2a4a73",
   accent: "#2563eb",
   accentLight: "#dbeafe",
   green: "#059669",
-  greenLight: "#d1fae5",
   purple: "#7c3aed",
   bg: "#f8fafc",
   bgAlt: "#f0f4f8",
@@ -26,11 +24,21 @@ const C = {
   white: "#ffffff",
 };
 
-// A4
 const PAGE_W = 595.28;
 const PAGE_H = 841.89;
-const M = 40; // margin
-const W = PAGE_W - M * 2;
+const MG = 40;
+const W = PAGE_W - MG * 2;
+
+// Helper: text without auto-pagination
+function t(
+  doc: PDFKit.PDFDocument,
+  str: string,
+  x: number,
+  y: number,
+  opts?: { width?: number; align?: "left" | "center" | "right" }
+) {
+  doc.text(str, x, y, { ...opts, lineBreak: false });
+}
 
 export async function GET(request: NextRequest) {
   const session = await auth();
@@ -59,7 +67,6 @@ export async function GET(request: NextRequest) {
     orderBy: [{ data: "asc" }, { oraInizio: "asc" }],
   });
 
-  // Group by instructor, sort alphabetically
   const byIst = new Map<string, typeof lezioni>();
   for (const l of lezioni) {
     if (!l.user) continue;
@@ -75,29 +82,20 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Nessun dato per questo mese" }, { status: 404 });
   }
 
-  // --- PDF Generation ---
-  const doc = new PDFDocument({ size: "A4", margin: M, bufferPages: true });
+  const doc = new PDFDocument({ size: "A4", margin: MG, autoFirstPage: false });
   const chunks: Uint8Array[] = [];
   doc.on("data", (chunk: Uint8Array) => chunks.push(chunk));
 
   const totalPages = instructors.length;
 
   for (let idx = 0; idx < instructors.length; idx++) {
-    if (idx > 0) doc.addPage();
+    doc.addPage({ size: "A4", margin: MG });
 
     const lessons = instructors[idx][1];
     const ist = lessons[0].user!;
     const fullName = `${ist.nome} ${ist.cognome}`;
-    const pageNum = idx + 1;
 
-    drawPage(doc, {
-      fullName,
-      meseNome,
-      anno,
-      lessons,
-      pageNum,
-      totalPages,
-    });
+    drawPage(doc, fullName, meseNome, anno, lessons, idx + 1, totalPages);
   }
 
   return new Promise<Response>((resolve) => {
@@ -126,135 +124,112 @@ type Lesson = {
   stato: string;
 };
 
+const COL_W = [85, 50, 180, 55, W - 85 - 50 - 180 - 55];
+const COL_LABELS = ["DATA", "ORA", "ATTIVITA", "PART.", "COMPENSO"];
+const COL_ALIGN: ("left" | "center" | "right")[] = ["left", "left", "left", "center", "right"];
+const ROW_H = 26;
+const PAD = 10;
+
 function drawPage(
   doc: PDFKit.PDFDocument,
-  opts: {
-    fullName: string;
-    meseNome: string;
-    anno: number;
-    lessons: Lesson[];
-    pageNum: number;
-    totalPages: number;
-  }
+  fullName: string,
+  meseNome: string,
+  anno: number,
+  lessons: Lesson[],
+  pageNum: number,
+  totalPages: number,
 ) {
-  const { fullName, meseNome, anno, lessons, pageNum, totalPages } = opts;
-
-  // === DECORATIVE LEFT ACCENT ===
+  // === LEFT ACCENT ===
   doc.rect(0, 0, 6, PAGE_H).fill(C.accent);
 
   // === HEADER BAR ===
   doc.rect(6, 0, PAGE_W - 6, 85).fill(C.primary);
-  // Subtle gradient overlay
   doc.rect(6, 65, PAGE_W - 6, 20).fill(C.primaryLight);
 
   doc.font("Helvetica-Bold").fontSize(22).fillColor(C.white);
-  doc.text("O-ZONE", M + 10, 18);
+  t(doc, "O-ZONE", MG + 10, 18);
   doc.font("Helvetica").fontSize(8).fillColor("#94a3b8");
-  doc.text("BENESSERE E MOVIMENTO SSD ARL", M + 10, 44);
+  t(doc, "BENESSERE E MOVIMENTO SSD ARL", MG + 10, 44);
 
-  // Month badge (right side)
-  const badgeText = `${meseNome.toUpperCase()} ${anno}`;
+  // Month badge
   const badgeW = 150;
-  doc.roundedRect(PAGE_W - M - badgeW, 22, badgeW, 30, 15).fill(C.accent);
+  doc.roundedRect(PAGE_W - MG - badgeW, 22, badgeW, 30, 15).fill(C.accent);
   doc.font("Helvetica-Bold").fontSize(12).fillColor(C.white);
-  doc.text(badgeText, PAGE_W - M - badgeW, 30, { width: badgeW, align: "center" });
+  t(doc, `${meseNome.toUpperCase()} ${anno}`, PAGE_W - MG - badgeW, 30, { width: badgeW, align: "center" });
 
-  // Subtitle
   doc.font("Helvetica").fontSize(9).fillColor("#cbd5e1");
-  doc.text("RIEPILOGO ORE ISTRUTTORE", M + 10, 60);
+  t(doc, "RIEPILOGO ORE ISTRUTTORE", MG + 10, 60);
 
   let y = 105;
 
   // === INSTRUCTOR NAME ===
-  doc.roundedRect(M, y, W, 44, 10).fill(C.accentLight);
-  doc.rect(M, y, 5, 44).fill(C.accent);
+  doc.roundedRect(MG, y, W, 44, 10).fill(C.accentLight);
+  doc.rect(MG, y, 5, 44).fill(C.accent);
   doc.font("Helvetica-Bold").fontSize(18).fillColor(C.primary);
-  doc.text(fullName.toUpperCase(), M + 18, y + 13);
+  t(doc, fullName.toUpperCase(), MG + 18, y + 13);
   y += 62;
 
-  // === TABLE ===
-  const cols = [
-    { label: "DATA", w: 85, align: "left" as const },
-    { label: "ORA", w: 50, align: "left" as const },
-    { label: "ATTIVITA", w: 180, align: "left" as const },
-    { label: "PART.", w: 55, align: "center" as const },
-    { label: "COMPENSO", w: W - 85 - 50 - 180 - 55, align: "right" as const },
-  ];
-
-  const ROW_H = 26;
-  const PAD = 10;
-
-  // Table header
-  drawTableHeader(doc, y, cols);
+  // === TABLE HEADER ===
+  drawTableHeader(doc, y);
   y += ROW_H;
 
-  // Table rows
+  // === TABLE ROWS ===
   for (let ri = 0; ri < lessons.length; ri++) {
-    // Page break
     if (y + ROW_H > PAGE_H - 140) {
-      // Footer on current page
       drawFooter(doc, meseNome, anno, pageNum, totalPages);
-      doc.addPage();
-      // Redraw accents on new page
+      doc.addPage({ size: "A4", margin: MG });
       doc.rect(0, 0, 6, PAGE_H).fill(C.accent);
-      y = M;
-      // Continue header
+      y = MG;
       doc.font("Helvetica-Bold").fontSize(10).fillColor(C.primary);
-      doc.text(`${fullName} — continua`, M + 5, y + 3);
+      t(doc, `${fullName} — continua`, MG + 5, y + 3);
       y += 25;
-      drawTableHeader(doc, y, cols);
+      drawTableHeader(doc, y);
       y += ROW_H;
     }
 
     const l = lessons[ri];
     const bg = ri % 2 === 0 ? C.white : C.bgAlt;
-
-    // Row background
-    doc.roundedRect(M, y, W, ROW_H, ri === lessons.length - 1 ? 4 : 0).fill(bg);
-    // Actually, just use rect for rows
-    doc.rect(M, y, W, ROW_H).fill(bg);
+    doc.rect(MG, y, W, ROW_H).fill(bg);
 
     const dataObj = new Date(l.data);
     const giorno = GIORNI[dataObj.getUTCDay()];
     const dataStr = `${giorno} ${String(dataObj.getUTCDate()).padStart(2, "0")}/${String(dataObj.getUTCMonth() + 1).padStart(2, "0")}`;
 
-    doc.font("Helvetica").fontSize(9).fillColor(C.text);
+    let cx = MG + PAD;
 
-    let cx = M + PAD;
-    // Data
-    doc.text(dataStr, cx, y + 8, { width: cols[0].w - PAD });
-    cx += cols[0].w;
-    // Ora
-    doc.text(l.oraInizio, cx, y + 8, { width: cols[1].w - PAD });
-    cx += cols[1].w;
-    // Attivita
-    doc.font("Helvetica-Bold").text(l.attivita, cx, y + 8, { width: cols[2].w - PAD });
-    cx += cols[2].w;
-    // Partecipanti
+    doc.font("Helvetica").fontSize(9).fillColor(C.text);
+    t(doc, dataStr, cx, y + 8, { width: COL_W[0] - PAD });
+    cx += COL_W[0];
+
+    t(doc, l.oraInizio, cx, y + 8, { width: COL_W[1] - PAD });
+    cx += COL_W[1];
+
+    doc.font("Helvetica-Bold");
+    t(doc, l.attivita, cx, y + 8, { width: COL_W[2] - PAD });
+    cx += COL_W[2];
+
     doc.font("Helvetica");
-    const partStr = l.partecipanti !== null ? String(l.partecipanti) : "-";
-    doc.text(partStr, cx, y + 8, { width: cols[3].w - PAD, align: "center" });
-    cx += cols[3].w;
-    // Compenso
+    t(doc, l.partecipanti !== null ? String(l.partecipanti) : "-", cx, y + 8, { width: COL_W[3] - PAD, align: "center" });
+    cx += COL_W[3];
+
     if (l.compenso !== null && l.compenso > 0) {
       doc.font("Helvetica-Bold").fillColor(C.text);
-      doc.text(`${l.compenso.toFixed(0)} EUR`, cx, y + 8, { width: cols[4].w - PAD * 2, align: "right" });
+      t(doc, `${l.compenso.toFixed(0)} EUR`, cx, y + 8, { width: COL_W[4] - PAD * 2, align: "right" });
     } else {
-      doc.font("Helvetica").fillColor(C.textMuted);
-      doc.text("-", cx, y + 8, { width: cols[4].w - PAD * 2, align: "right" });
+      doc.fillColor(C.textMuted);
+      t(doc, "-", cx, y + 8, { width: COL_W[4] - PAD * 2, align: "right" });
     }
 
     y += ROW_H;
   }
 
   // Bottom table border
-  doc.rect(M, y, W, 2).fill(C.accent);
+  doc.rect(MG, y, W, 2).fill(C.accent);
   y += 18;
 
-  // === SUMMARY BOX ===
+  // === SUMMARY ===
   const totalCompenso = lessons.reduce((s, l) => s + (l.compenso ?? 0), 0);
-  const lezioniOsteo = lessons.filter((l) => l.attivita === "OSTEO");
-  const compensoOsteo = lezioniOsteo.reduce((s, l) => s + (l.compenso ?? 0), 0);
+  const compensoOsteo = lessons.filter((l) => l.attivita === "OSTEO").reduce((s, l) => s + (l.compenso ?? 0), 0);
   const compensoOzone = totalCompenso - compensoOsteo;
   const totalLezioni = lessons.length;
   const totalOre = lessons.reduce((s, l) => s + (l.attivita === "PT 30 Min" ? 0.5 : 1), 0);
@@ -263,76 +238,59 @@ function drawPage(
   const hasOsteo = compensoOsteo > 0;
   const summaryH = hasOsteo ? 110 : 90;
 
-  doc.roundedRect(M, y, W, summaryH, 10).fill(C.bg);
-  doc.rect(M, y, 5, summaryH).fill(C.green);
-  // Inner border
-  doc.roundedRect(M + 1, y + 1, W - 2, summaryH - 2, 10).lineWidth(1).strokeColor(C.border).stroke();
+  // Check page break for summary
+  if (y + summaryH > PAGE_H - 50) {
+    drawFooter(doc, meseNome, anno, pageNum, totalPages);
+    doc.addPage({ size: "A4", margin: MG });
+    doc.rect(0, 0, 6, PAGE_H).fill(C.accent);
+    y = MG;
+  }
 
-  // Title
+  doc.roundedRect(MG, y, W, summaryH, 10).fill(C.bg);
+  doc.rect(MG, y, 5, summaryH).fill(C.green);
+  doc.roundedRect(MG + 1, y + 1, W - 2, summaryH - 2, 10).lineWidth(1).strokeColor(C.border).stroke();
+
   doc.font("Helvetica-Bold").fontSize(11).fillColor(C.primary);
-  doc.text("RIEPILOGO", M + 18, y + 14);
+  t(doc, "RIEPILOGO", MG + 18, y + 14);
 
-  // Stats row
   doc.font("Helvetica").fontSize(10).fillColor(C.text);
   const statsY = y + 34;
-  doc.text(`${totalLezioni} lezioni`, M + 18, statsY);
-  doc.text(`${totalOre} ore`, M + 130, statsY);
-  doc.text(`${totalPart} partecipanti`, M + 220, statsY);
+  t(doc, `${totalLezioni} lezioni`, MG + 18, statsY);
+  t(doc, `${totalOre} ore`, MG + 130, statsY);
+  t(doc, `${totalPart} partecipanti`, MG + 220, statsY);
 
-  // Divider
-  doc.rect(M + 18, statsY + 18, W - 36, 1).fill(C.border);
+  doc.rect(MG + 18, statsY + 18, W - 36, 1).fill(C.border);
 
-  // Invoice amount
   const invoiceY = statsY + 28;
   if (hasOsteo) {
     doc.font("Helvetica-Bold").fontSize(13).fillColor(C.green);
-    doc.text(`FATTURA O-ZONE:  ${compensoOzone.toFixed(0)} EUR`, M + 18, invoiceY);
+    t(doc, `FATTURA O-ZONE:  ${compensoOzone.toFixed(0)} EUR`, MG + 18, invoiceY);
     doc.font("Helvetica-Bold").fontSize(11).fillColor(C.purple);
-    doc.text(`FATTURA DIGIELLE (OSTEO):  ${compensoOsteo.toFixed(0)} EUR`, M + 18, invoiceY + 22);
+    t(doc, `FATTURA DIGIELLE (OSTEO):  ${compensoOsteo.toFixed(0)} EUR`, MG + 18, invoiceY + 22);
   } else {
     doc.font("Helvetica-Bold").fontSize(14).fillColor(C.green);
-    doc.text(`IMPORTO FATTURA:  ${compensoOzone.toFixed(0)} EUR`, M + 18, invoiceY);
+    t(doc, `IMPORTO FATTURA:  ${compensoOzone.toFixed(0)} EUR`, MG + 18, invoiceY);
   }
 
-  // === FOOTER ===
   drawFooter(doc, meseNome, anno, pageNum, totalPages);
 }
 
-function drawTableHeader(doc: PDFKit.PDFDocument, y: number, cols: { label: string; w: number; align: string }[]) {
-  // Header background with rounded top
-  doc.roundedRect(M, y, W, 26, 6).fill(C.primary);
-  // Cover bottom rounded corners
-  doc.rect(M, y + 13, W, 13).fill(C.primary);
+function drawTableHeader(doc: PDFKit.PDFDocument, y: number) {
+  doc.roundedRect(MG, y, W, 26, 6).fill(C.primary);
+  doc.rect(MG, y + 13, W, 13).fill(C.primary);
 
   doc.font("Helvetica-Bold").fontSize(8).fillColor(C.white);
-  let cx = M + 10;
-  for (const col of cols) {
-    doc.text(col.label, cx, y + 9, {
-      width: col.w - 10,
-      align: col.align as "left" | "center" | "right",
-    });
-    cx += col.w;
+  let cx = MG + 10;
+  for (let i = 0; i < COL_LABELS.length; i++) {
+    t(doc, COL_LABELS[i], cx, y + 9, { width: COL_W[i] - 10, align: COL_ALIGN[i] });
+    cx += COL_W[i];
   }
 }
 
-function drawFooter(
-  doc: PDFKit.PDFDocument,
-  meseNome: string,
-  anno: number,
-  pageNum: number,
-  totalPages: number
-) {
+function drawFooter(doc: PDFKit.PDFDocument, meseNome: string, anno: number, pageNum: number, totalPages: number) {
   const footerY = PAGE_H - 35;
-  doc.rect(M, footerY - 5, W, 1).fill(C.border);
+  doc.rect(MG, footerY - 5, W, 1).fill(C.border);
   doc.font("Helvetica").fontSize(7).fillColor(C.textMuted);
-  doc.text(
-    `Generato il ${new Date().toLocaleDateString("it-IT")} — Riepilogo ${meseNome} ${anno}`,
-    M,
-    footerY,
-    { width: W / 2 }
-  );
-  doc.text(`Pagina ${pageNum} di ${totalPages}`, M + W / 2, footerY, {
-    width: W / 2,
-    align: "right",
-  });
+  t(doc, `Generato il ${new Date().toLocaleDateString("it-IT")} — Riepilogo ${meseNome} ${anno}`, MG, footerY, { width: W / 2 });
+  t(doc, `Pagina ${pageNum} di ${totalPages}`, MG + W / 2, footerY, { width: W / 2, align: "right" });
 }
