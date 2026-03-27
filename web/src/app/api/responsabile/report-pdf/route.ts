@@ -14,7 +14,7 @@ const PAGE_H = 841.89;
 const MG = 40;
 const W = PAGE_W - MG * 2;
 
-// Safe text: explicit x,y, no lineBreak, reset cursor after
+// Safe text: no width/align (avoids pdfkit auto-pagination entirely)
 function txt(
   doc: PDFKit.PDFDocument,
   str: string,
@@ -22,7 +22,14 @@ function txt(
   y: number,
   opts?: { width?: number; align?: "left" | "center" | "right" }
 ) {
-  doc.text(str, x, y, { ...opts, lineBreak: false });
+  let finalX = x;
+  if (opts?.width && opts?.align) {
+    const tw = doc.widthOfString(str);
+    if (opts.align === "center") finalX = x + (opts.width - tw) / 2;
+    else if (opts.align === "right") finalX = x + opts.width - tw;
+  }
+  // Never pass width/align to pdfkit — they trigger internal pagination
+  doc.text(str, finalX, y, { lineBreak: false });
   doc.y = 0;
 }
 
