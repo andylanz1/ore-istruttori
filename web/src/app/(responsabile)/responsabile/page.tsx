@@ -4,6 +4,9 @@ import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useCallback } from "react";
 import HamburgerMenu from "@/components/layout/HamburgerMenu";
+import dynamic from "next/dynamic";
+
+const DashboardCharts = dynamic(() => import("@/components/ui/DashboardCharts"), { ssr: false });
 
 type IstruttoreStats = {
   id: string;
@@ -94,7 +97,7 @@ export default function ResponsabilePage() {
   const [loading, setLoading] = useState(true);
   const [sortKey, setSortKey] = useState<SortKey>("cognome");
   const [sortAsc, setSortAsc] = useState(true);
-  const [tab, setTab] = useState<"panoramica" | "classifiche" | "controllo" | "report">("panoramica");
+  const [tab, setTab] = useState<"panoramica" | "classifiche" | "controllo" | "report" | "grafici">("panoramica");
   const [sendingReport, setSendingReport] = useState(false);
   const [reportSent, setReportSent] = useState(false);
 
@@ -335,11 +338,11 @@ export default function ResponsabilePage() {
 
         {/* Tabs */}
         <div className="flex gap-1 bg-white rounded-xl p-1 shadow-sm">
-          {(["panoramica", "classifiche", "controllo", "report"] as const).map((t) => (
+          {(["panoramica", "classifiche", "controllo", "report", ...(role === "admin" ? ["grafici" as const] : [])] as const).map((t) => (
             <button
               key={t}
               onClick={() => setTab(t)}
-              className={`flex-1 py-2 text-sm font-medium rounded-lg capitalize transition-colors ${
+              className={`flex-1 py-2 text-xs sm:text-sm font-medium rounded-lg capitalize transition-colors ${
                 tab === t ? "bg-brand-dark text-white" : "text-brand-gray-dark hover:bg-brand-gray"
               }`}
             >
@@ -692,6 +695,11 @@ export default function ResponsabilePage() {
               </>
             )}
           </div>
+        )}
+
+        {/* Tab: Grafici (solo admin) */}
+        {tab === "grafici" && role === "admin" && (
+          <DashboardCharts istruttori={data.istruttori} />
         )}
 
         {/* WhatsApp Report Button */}
