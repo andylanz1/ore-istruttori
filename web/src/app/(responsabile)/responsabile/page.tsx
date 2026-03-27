@@ -16,7 +16,10 @@ type IstruttoreStats = {
   lezioniConfermate: number;
   lezioniDaConfermare: number;
   ore: number;
+  oreOsteo: number;
   compensoTotale: number;
+  compensoOzone: number;
+  compensoOsteo: number;
   compensoPerOra: number;
   totalePartecipanti: number;
   mediaPartecipanti: number;
@@ -36,15 +39,24 @@ type ControlloLezione = {
   isTurno: boolean;
 };
 
+type IstruttoreOption = {
+  id: string;
+  nome: string;
+  cognome: string;
+};
+
 type DashboardData = {
   mese: number;
   anno: number;
   istruttori: IstruttoreStats[];
+  istruttoriAttivi: IstruttoreOption[];
   turniDisponibili: number;
   controlloLezioni: ControlloLezione[];
   totali: {
     lezioni: number;
     compenso: number;
+    compensoOzone: number;
+    compensoDigielle: number;
     partecipanti: number;
     riempimentoMedio: number;
   };
@@ -99,6 +111,10 @@ export default function ResponsabilePage() {
   const [filtroCtrlIstruttore, setFiltroCtrlIstruttore] = useState("");
   const [filtroCtrlAttivita, setFiltroCtrlAttivita] = useState("");
   const [filtroCtrlGiorno, setFiltroCtrlGiorno] = useState("");
+
+  // Assegnazione turni
+  const [assegnando, setAssegnando] = useState<string | null>(null); // lezioneId in corso
+  const [erroreAssegnazione, setErroreAssegnazione] = useState<string | null>(null);
 
   const now = new Date();
   const [mese, setMese] = useState(now.getMonth() + 1);
@@ -162,6 +178,28 @@ export default function ResponsabilePage() {
     }
   };
 
+  const assegnaTurno = async (lezioneId: string, userId: string) => {
+    setAssegnando(lezioneId);
+    setErroreAssegnazione(null);
+    try {
+      const res = await fetch("/api/responsabile/assegna-turno", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ lezioneId, userId }),
+      });
+      if (res.ok) {
+        await fetchData(); // refresh dashboard
+      } else {
+        const err = await res.json();
+        setErroreAssegnazione(err.error || "Errore nell'assegnazione");
+      }
+    } catch {
+      setErroreAssegnazione("Errore di rete");
+    } finally {
+      setAssegnando(null);
+    }
+  };
+
   if (status === "loading" || loading) {
     return (
       <div className="min-h-screen bg-brand-gray flex items-center justify-center">
@@ -186,7 +224,7 @@ export default function ResponsabilePage() {
 
   // Rankings
   const byOre = [...data.istruttori].filter(s => s.ore > 0).sort((a, b) => b.ore - a.ore);
-  const byCompenso = [...data.istruttori].filter(s => s.compensoTotale > 0).sort((a, b) => b.compensoTotale - a.compensoTotale);
+  const byCompenso = [...data.istruttori].filter(s => s.compensoOzone > 0).sort((a, b) => b.compensoOzone - a.compensoOzone);
   const byPartecipanti = [...data.istruttori].filter(s => s.mediaPartecipanti > 0).sort((a, b) => b.mediaPartecipanti - a.mediaPartecipanti);
   const byCompensoOra = [...data.istruttori].filter(s => s.ore > 0 && s.compensoPerOra > 0).sort((a, b) => b.compensoPerOra - a.compensoPerOra);
   const byRiempimento = [...data.istruttori].filter(s => s.riempimentoMedio > 0).sort((a, b) => b.riempimentoMedio - a.riempimentoMedio);
@@ -287,7 +325,10 @@ export default function ResponsabilePage() {
         {/* KPI Cards */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           <KpiCard label="Lezioni totali" value={String(data.totali.lezioni)} />
-          <KpiCard label="Compensi totali" value={`${data.totali.compenso}EUR`} />
+          <KpiCard label="Compensi O-zone" value={`${data.totali.compensoOzone}EUR`} />
+          {data.totali.compensoDigielle > 0 && (
+            <KpiCard label="Compensi Digielle" value={`${data.totali.compensoDigielle}EUR`} subtitle="OSTEO" />
+          )}
           <KpiCard label="Riempimento medio" value={`${data.totali.riempimentoMedio}%`} />
           <KpiCard label="Turni da coprire" value={String(data.turniDisponibili)} accent={data.turniDisponibili > 0} />
         </div>
@@ -336,7 +377,10 @@ export default function ResponsabilePage() {
                     <td className="text-center px-2 py-2.5">{ist.lezioniTotali}</td>
                     <td className="text-center px-2 py-2.5">{ist.ore}</td>
                     <td className="text-right px-3 py-2.5 font-medium">
-                      {ist.compensoTotale > 0 ? `${ist.compensoTotale.toFixed(0)}EUR` : "-"}
+                      {ist.compensoOzone > 0 ? `${ist.compensoOzone.toFixed(0)}EUR` : "-"}
+                      {ist.compensoOsteo > 0 && (
+                        <span className="block text-[10px] text-purple-600 font-normal">+{ist.compensoOsteo.toFixed(0)} Digielle</span>
+                      )}
                     </td>
                     <td className="text-right px-3 py-2.5 text-brand-gray-dark">
                       {ist.compensoPerOra > 0 ? `${ist.compensoPerOra.toFixed(1)}` : "-"}
@@ -360,7 +404,7 @@ export default function ResponsabilePage() {
         {tab === "classifiche" && (
           <div className="space-y-3">
             <RankCard title="Piu ore" items={byOre.slice(0, 5)} format={(s) => `${s.ore}h`} />
-            <RankCard title="Piu compenso" items={byCompenso.slice(0, 5)} format={(s) => `${s.compensoTotale.toFixed(0)}EUR`} />
+            <RankCard title="Piu compenso (O-zone)" items={byCompenso.slice(0, 5)} format={(s) => `${s.compensoOzone.toFixed(0)}EUR`} />
             <RankCard title="Piu partecipanti (media)" items={byPartecipanti.slice(0, 5)} format={(s) => `${s.mediaPartecipanti.toFixed(1)}/lez`} />
             <RankCard title="Miglior compenso/ora" items={byCompensoOra.slice(0, 5)} format={(s) => `${s.compensoPerOra.toFixed(1)}EUR/h`} />
             <RankCard title="Miglior riempimento" items={byRiempimento.slice(0, 5)} format={(s) => `${s.riempimentoMedio.toFixed(0)}%`} />
@@ -377,15 +421,51 @@ export default function ResponsabilePage() {
               <KpiCard label="Confermate" value={String(confermate.length)} />
             </div>
 
-            {/* Turni scoperti */}
+            {/* Turni da coprire */}
             {turni.length > 0 && (
               <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
                 <h3 className="px-4 py-3 font-medium text-sm border-b border-brand-gray-medium bg-amber-50 text-amber-800">
                   Turni da coprire ({turni.length})
                 </h3>
+                {erroreAssegnazione && (
+                  <div className="px-4 py-2 bg-red-50 text-red-700 text-xs border-b border-red-200">
+                    {erroreAssegnazione}
+                  </div>
+                )}
                 <div className="divide-y divide-brand-gray">
                   {turni.map((l) => (
-                    <LessonRow key={l.id} lesson={l} />
+                    <div key={l.id} className="px-4 py-2.5">
+                      <div className="flex items-center justify-between text-sm">
+                        <div>
+                          <span className="font-medium">{l.data}</span>
+                          <span className="text-brand-gray-dark ml-2">{l.oraInizio}</span>
+                          <span className="ml-2">{l.attivita}</span>
+                          {l.partecipanti !== null && (
+                            <span className="text-brand-gray-dark ml-1">({l.partecipanti} pers)</span>
+                          )}
+                        </div>
+                      </div>
+                      <div className="mt-2">
+                        <select
+                          disabled={assegnando === l.id}
+                          defaultValue=""
+                          onChange={(e) => {
+                            if (e.target.value) assegnaTurno(l.id, e.target.value);
+                          }}
+                          className="w-full text-sm border border-amber-300 rounded-lg px-3 py-1.5 bg-amber-50 text-amber-800 disabled:opacity-50"
+                        >
+                          <option value="">Assegna istruttore...</option>
+                          {data.istruttoriAttivi.map((ist) => (
+                            <option key={ist.id} value={ist.id}>
+                              {ist.nome} {ist.cognome}
+                            </option>
+                          ))}
+                        </select>
+                        {assegnando === l.id && (
+                          <p className="text-xs text-amber-600 mt-1">Assegnazione in corso...</p>
+                        )}
+                      </div>
+                    </div>
                   ))}
                 </div>
               </div>
@@ -711,11 +791,12 @@ function StatoBadge({ stato }: { stato: string }) {
   );
 }
 
-function KpiCard({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
+function KpiCard({ label, value, accent, subtitle }: { label: string; value: string; accent?: boolean; subtitle?: string }) {
   return (
     <div className={`rounded-2xl p-4 shadow-sm text-center ${accent ? "bg-amber-50 border border-amber-200" : "bg-white"}`}>
       <p className={`text-2xl font-bold ${accent ? "text-amber-700" : ""}`}>{value}</p>
       <p className="text-[11px] text-brand-gray-dark mt-1">{label}</p>
+      {subtitle && <p className="text-[10px] text-purple-600 mt-0.5">{subtitle}</p>}
     </div>
   );
 }

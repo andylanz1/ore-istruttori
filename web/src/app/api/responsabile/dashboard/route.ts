@@ -58,13 +58,20 @@ export async function GET(request: NextRequest) {
     const compensoLezioni = lezioni.reduce((s, r) => s + (r.compenso ?? 0), 0);
     const compensoTotale = compensoStorico ?? fisso ?? compensoLezioni;
 
+    // Compenso OSTEO (Digielle) — sempre calcolato dalla somma lezioni OSTEO
+    const lezioniOsteo = lezioni.filter((r) => r.attivita === "OSTEO");
+    const compensoOsteo = lezioniOsteo.reduce((s, r) => s + (r.compenso ?? 0), 0);
+    const oreOsteo = lezioniOsteo.length; // OSTEO = 1h ciascuna
+    const compensoOzone = compensoTotale - compensoOsteo;
+
     // Ore (each lesson = 1h unless PT 30 Min = 0.5h)
     const ore = lezioni.reduce((s, r) => {
       return s + (r.attivita === "PT 30 Min" ? 0.5 : 1);
     }, 0);
+    const oreNoOsteo = ore - oreOsteo;
 
-    // Compenso per ora
-    const compensoPerOra = ore > 0 ? compensoTotale / ore : 0;
+    // Compenso per ora (calcolato solo su ore O-zone, senza OSTEO)
+    const compensoPerOra = oreNoOsteo > 0 ? compensoOzone / oreNoOsteo : 0;
 
     // Partecipanti (solo lezioni di gruppo con partecipanti)
     const lezioniGruppo = lezioni.filter(
@@ -101,7 +108,10 @@ export async function GET(request: NextRequest) {
       lezioniConfermate: confermate.length,
       lezioniDaConfermare: daConfermare.length,
       ore,
+      oreOsteo,
       compensoTotale,
+      compensoOzone,
+      compensoOsteo,
       // Se responsabile, nascondi il proprio compenso/ora
       compensoPerOra: isResponsabile && ist.id === userId ? 0 : Math.round(compensoPerOra * 100) / 100,
       totalePartecipanti,
@@ -142,6 +152,8 @@ export async function GET(request: NextRequest) {
   // Totali
   const totLezioni = stats.reduce((s, i) => s + i.lezioniTotali, 0);
   const totCompenso = stats.reduce((s, i) => s + i.compensoTotale, 0);
+  const totCompensoOzone = stats.reduce((s, i) => s + i.compensoOzone, 0);
+  const totCompensoDigielle = stats.reduce((s, i) => s + i.compensoOsteo, 0);
   const totPartecipanti = stats.reduce((s, i) => s + i.totalePartecipanti, 0);
   const avgRiempimento =
     stats.filter((s) => s.riempimentoMedio > 0).length > 0
@@ -151,15 +163,25 @@ export async function GET(request: NextRequest) {
         stats.filter((s) => s.riempimentoMedio > 0).length
       : 0;
 
+  // Lista istruttori attivi (per assegnazione turni)
+  const istruttoriAttivi = istruttori.map((ist) => ({
+    id: ist.id,
+    nome: ist.nome,
+    cognome: ist.cognome,
+  }));
+
   return NextResponse.json({
     mese,
     anno,
     istruttori: stats,
+    istruttoriAttivi,
     turniDisponibili: turniDisponibili.length,
     controlloLezioni,
     totali: {
       lezioni: totLezioni,
       compenso: Math.round(totCompenso),
+      compensoOzone: Math.round(totCompensoOzone),
+      compensoDigielle: Math.round(totCompensoDigielle),
       partecipanti: totPartecipanti,
       riempimentoMedio: Math.round(avgRiempimento * 10) / 10,
     },
