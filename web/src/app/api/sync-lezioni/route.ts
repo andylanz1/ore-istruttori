@@ -88,6 +88,23 @@ export async function POST(request: NextRequest) {
           },
         });
 
+    // For TURNI: skip if an instructor is already assigned to same slot
+    if (isTurni && !existing) {
+      const giàAssegnata = await prisma.registrazioneOre.findFirst({
+        where: {
+          data: giorno,
+          oraInizio: item.oraInizio,
+          attivita: item.attivita,
+          userId: { not: null },
+        },
+      });
+      if (giàAssegnata) {
+        dettagli.push({ ...pick(item), azione: "skip (già assegnata a istruttore)" });
+        skipped++;
+        continue;
+      }
+    }
+
     if (existing) {
       if (existing.stato === "da_confermare") {
         // Update participant count + recalculate compenso
